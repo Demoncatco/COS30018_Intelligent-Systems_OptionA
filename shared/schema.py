@@ -1,5 +1,6 @@
 # The contract that will be used between the detection model and the other agents such as the diagnostic and recommendation agennts
 
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -168,5 +169,54 @@ class PredictionResponse(BaseModel):
                     "latency_ms": 12.4,
                 }
             ]
-        }
+        } # pyright: ignore[reportArgumentType]
     )
+
+
+# ============================================================
+# Coordinator Agent <-> Recommendation Agent contract
+# ============================================================
+
+class UrgencyLevel(str, Enum):
+    ROUTINE = "routine"
+    SEE_DOCTOR_SOON = "see_doctor_soon"
+    URGENT = "urgent"
+
+
+class EvidenceStatus(str, Enum):
+    GROUNDED_LOCAL = "grounded_local"
+    GROUNDED_WEB = "grounded_web"
+    NO_CREDIBLE_SOURCE_FOUND = "no_credible_source_found"
+
+
+class CoordinatorRequest(BaseModel):
+    # Sent from the Coordinator Agent to the Recommendation Agent
+
+    finding: dict[str, float] = Field(
+        description=(
+            "Probability (0-1) of each of the 12 findings, using the exact same "
+            "names as FINDINGS above - e.g. 'Baker's', 'PF OA', 'Medial Meniscus'."
+        )
+    )
+    confidence: float = Field(
+        ge=0.0, le=1.0, description="Overall confidence from the Diagnostic Agent."
+    )
+    study_context: dict = Field(
+        default_factory=dict, description="Minimal relevant context only, e.g. {'laterality': 'left'}."
+    )
+    task_type: str = Field(
+        description='Either "initial" or "recheck: <specific ask>" (set by the Coordinator retry loop).'
+    )
+
+    # Reuses the SAME validator
+    _validate_finding = field_validator("finding")(_check_scores)
+
+
+class RecommendationResponse(BaseModel):
+    # Returned from the Recommendation Agent to the Coordinator Agent
+
+    recommendation_text: str
+    citations: list[str] = Field(default_factory=list)
+    urgency: UrgencyLevel
+    evidence_status: EvidenceStatus
+    trace: list[str] = Field(default_factory=list, description="Step-by-step log, for the UI's agent trace.")

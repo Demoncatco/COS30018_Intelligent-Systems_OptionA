@@ -6,11 +6,17 @@ scikit-learn # Machine Learning Toolbox, will be used for measuing how good the 
 matplotlib # Draws charts and shows images, will be used to look at the scans and plot training progress.
 tqdm # Used to track progress of a loop.
 requests # Makes web requests for python. 
+sentence-transformers # Used to convert text into a vector representation that can be used for similarity search.
+python-dotenv # Loads environment variables from a .env file into the python environment. This is used to load the Tavily API key into the system without hardcoding it into the code.
 
 # API Packages:
 fastapi # Turns the python functions into web addresses
 uvicorn[standard] # Runs the server, fastapi describes the app, uvicorn serves it. 
 pydantic>=2 # Used to check that data is formatted correctly and in the right shape.
+tavily-python # Used to make requests to the Tavily API for recommendations.
+
+# Orchestration Packages:
+langgraph # Used to orchestrate the flow of data between the different agents of the system.
 
 # Dev Testing Packages:
 pytest
