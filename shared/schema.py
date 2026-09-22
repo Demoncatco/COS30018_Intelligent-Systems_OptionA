@@ -174,6 +174,132 @@ class PredictionResponse(BaseModel):
 
 
 # ============================================================
+# Coordinator Agent <-> Diagnostic Agent contract
+# ============================================================
+class DiagnosticDecision(str, Enum):
+    FINALIZE = "finalize"   
+    RETRY = "retry" 
+    ESCALATE = "escalate" 
+
+def _check_partial_scores(scores: dict[str, float]) -> dict[str, float]:
+    unknown = sorted(set(scores) - set(FINDINGS))
+    if unknown:
+        raise ValueError(f"unexpected finding names: {unknown}")
+
+    bad = {name: p for name, p in scores.items() if not 0.0 <= p <= 1.0}
+    if bad:
+        raise ValueError(f"probabilities must be between 0 and 1, got {bad}")
+    return scores
+
+class DiagnosticAgentRequest(BaseModel):
+    study_id: str = Field(
+        min_length=1,
+        examples=["1.2.826.0.1.3680043.8.498.10001"],
+    )
+
+    task_type: str = Field(
+        default="initial",
+        description=(
+            'Either "initial" or "recheck: <specific ask>'
+        ),
+    )
+
+    focus_findings: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Findsing to re-examine during recheck."
+        ),
+    )
+
+    @field_validator("focus_findings")
+    @classmethod
+    def _validate_focus_findings(cls, names: list[str]) -> list[str]:
+        unknown = sorted(set(names) - set(FINDINGS))
+        if unknown:
+            raise ValueError(f"focus_findings contains unknown finding names: {unknown}")
+        return names
+
+class DiagnosticAgentResponse(BaseModel):
+    study_id: str
+    findings: dict[str, float] = Field(
+        description=(
+            "Final probability for each finding."
+        )
+    )
+
+    per_finding_confidence: dict[str, float] = Field(
+        description=(
+            "Confidence in each finding probability."
+        )
+    )
+
+    overall_confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Overall confidence for the study."
+        ),
+    )
+
+    decision: DiagnosticDecision = Field(
+        description="Result of the diagnostic decision loop.",
+    )
+
+    retry_count: int = Field(
+        ge=0,
+        description="Numbers of Model Service retries.",
+    )
+
+    cross_plane_variance: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Findings with significant variation between imaging planes.",          
+        ),
+    )
+
+    quality_flags: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Quality issues identified during processing."
+        ),
+    )
+
+    laterality: Laterality = Field( description="Knee laterality.", )
+    
+    trace: list[str] = Field(
+        default_factory=list,
+        description="Diagnostic decision loop trace.",
+    )
+
+    _validate_findings = field_validator("findings")(_check_scores)
+    _validate_per_finding_confidence = field_validator("per_finding_confidence")(_check_scores)
+    _validate_cross_plane_variance = field_validator("cross_plane_variance")(_check_partial_scores)
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "study_id": "1.2.826.0.1.3680043.8.498.10001",
+                    "findings": {name: 0.05 for name in FINDINGS} | {"ACL": 0.88},
+                    "per_finding_confidence": {name: 0.9 for name in FINDINGS} | {"ACL": 0.95},
+                    "overall_confidence": 0.9,
+                    "decision": "finalize",
+                    "retry_count": 0,
+                    "cross_plane_variance": {},
+                    "quality_flags": [],
+                    "laterality": "left",
+                    "trace": [
+                        "QC passed: all 3 planes present, slice counts nominal.",
+                        "Called Model Service /predict.",
+                        "ACL 0.88 consistent across all planes (variance below threshold).",
+                        "Decision: finalize.",
+                    ],
+                }
+            ]
+        } 
+    )
+
+# ============================================================
 # Coordinator Agent <-> Recommendation Agent contract
 # ============================================================
 
