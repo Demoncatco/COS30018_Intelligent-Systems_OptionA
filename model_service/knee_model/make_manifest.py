@@ -1,22 +1,10 @@
-"""Build the Role 1 working-subset manifest: which studies are in scope, and why.
+# This file builds the maifest that holds the working subset of data. This makes the decision on which studies are in scope, and which ones are not, and why.
+# To Run from the Repository Root, Run: python -m model_service.knee_model.make_manifest
+# This file reads data/cache/kaggle_meta/train.csv. It then writes model_service/knee_model/maifest.csv
 
-Run from the repository root:
-
-    python -m model_service.knee_model.make_manifest
-
-Reads  data/cache/kaggle_meta/train.csv          (gitignored, cached from Kaggle)
-Writes model_service/knee_model/manifest.csv     (tracked by git — teammates read this)
-
-The manifest has two columns:
-
-    study_id       the StudyInstanceUID, which is also the folder name on disk
-    label_source   'gold'  = all 12 finding columns are filled in train.csv
-                   'weak'  = no findings filled; labels must be extracted from Report text
-
-Why it exists: Person 2 cannot begin labelling and Person 3 cannot scope the
-training set until the list of studies is fixed. This script makes that list
-reproducible — same CSV, same seed, same manifest, every time.
-"""
+# The manifest.csv file has two columns:
+# - study_id: The StudyInstanceUID
+# - label_source: Either gold or weak. Gold means that all 12 finding columns are filled in train.csv. Weak means that no findings are filled and the labels must be extracted from the reports.
 
 from __future__ import annotations
 
@@ -26,21 +14,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# ---------------------------------------------------------------------------
-# Decisions. Change these deliberately and record the change in the worklog.
-# ---------------------------------------------------------------------------
+SEED = 30018            # The Seed that is used to randomly obtain the same StudyInstanceUID's each time for random consistency. The unit code was chosen to be used as the Seed, though can be anything.
+N_WEAK = 250            # The number of weak studies that will be included on top of the gold studies. This amount was discussed in our team meeting on the 15th September
 
-SEED = 30018            # The unit code. Chosen so nobody has to look it up.
-N_WEAK = 250            # Per the step-by-step plan: ~250 weak studies alongside the gold set.
-
-# Paths are anchored to this file so the script works from any working directory.
+# Paths are established to this file so the script works from any working directory.
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_TRAIN_CSV = REPO_ROOT / "data" / "cache" / "kaggle_meta" / "train.csv"
-DEFAULT_SERIES_CSV = REPO_ROOT / "data" / "cache" / "kaggle_meta" / "train_series.csv"
-DEFAULT_MANIFEST = Path(__file__).resolve().parent / "manifest.csv"
+DEFAULT_TRAIN_CSV = REPO_ROOT / "data" / "cache" / "kaggle_meta" / "train.csv" # Builds path to train.csv
+DEFAULT_SERIES_CSV = REPO_ROOT / "data" / "cache" / "kaggle_meta" / "train_series.csv" # Builds path to train_series.csv
+DEFAULT_MANIFEST = Path(__file__).resolve().parent / "manifest.csv" # Builds path to manifest.csv
 
 # The 12 finding columns, in the exact order they appear in train.csv.
-# This deliberately matches shared.schema.FINDINGS so the two can be asserted equal.
 FINDING_COLUMNS = [
     "ACL",
     "MCL",
@@ -56,42 +39,39 @@ FINDING_COLUMNS = [
     "Fracture",
 ]
 
-
+# This function splits train.csv into gold and weak studies, returning the manifest table
 def build_manifest(train: pd.DataFrame, seed: int = SEED, n_weak: int = N_WEAK) -> pd.DataFrame:
-    """Split train.csv into gold and weak studies and return the manifest table.
-
-    Gold  = rows where any finding column is non-empty. In practice every gold row
-            has all 12 filled, and that is asserted below rather than assumed.
-    Weak  = a seeded random sample, without replacement, from every other row.
-
-    The sample is drawn from the candidate IDs *sorted alphabetically*, not in CSV
-    row order. This means the result depends only on the set of study IDs and the
-    seed, not on how Kaggle happened to order the file.
-    """
+    # Takes the train table, plus a seed and sample size and returns the manifest table. 
+    
+    # Gold = rows where any finding columns are NOT empty.
+    # Weak = a seeded random sample study that does not have any findings details
+    
+    # Checks that all 12 findings columns actually exist in the csv.
     missing = [c for c in FINDING_COLUMNS if c not in train.columns]
     if missing:
         raise ValueError(f"train.csv is missing finding columns: {missing}")
 
-    has_any_label = train[FINDING_COLUMNS].notna().any(axis=1)
-    has_all_labels = train[FINDING_COLUMNS].notna().all(axis=1)
+    has_any_label = train[FINDING_COLUMNS].notna().any(axis=1) # Turns a true or false for whether at least one of the finding column cells are filled in per row
+    has_all_labels = train[FINDING_COLUMNS].notna().all(axis=1) # Returns a true or false for whether all finding column cells are filled in per row
 
-    # A partially labelled row would be neither gold nor weak. None exist today;
-    # fail loudly if that ever changes rather than silently misfiling it.
+    # A row that has some but not all findings would be neither gold or weak. This ensures that none exist by throwing an error.
     partial = has_any_label & ~has_all_labels
     if partial.any():
         raise ValueError(f"{int(partial.sum())} rows are partially labelled; decide how to treat them")
 
-    gold_ids = sorted(train.loc[has_any_label, "StudyInstanceUID"])
-    candidate_ids = sorted(train.loc[~has_any_label, "StudyInstanceUID"])
+    # .loc[mask, column] selects the study IDs where the mask is true.
+    gold_ids = sorted(train.loc[has_any_label, "StudyInstanceUID"]) # gold_ids hold every study that has all findings columns labelled
+    candidate_ids = sorted(train.loc[~has_any_label, "StudyInstanceUID"]) # candidate_ids hold every study that has no findings columns labelled. They are then candidates for the weak studies. ~ means not, which is why it is used here.
 
+    # Ensures that we cannot draw a sample size that is greater than the actual number of candidates. This error should never occur, however it is accounted for in case.
     if n_weak > len(candidate_ids):
         raise ValueError(f"asked for {n_weak} weak studies but only {len(candidate_ids)} are unlabelled")
 
-    # default_rng is numpy's modern generator. Its output for a given seed is stable
-    # across numpy versions, which is the whole point of writing the seed down.
+    # Creates the random number generator and then picks 250 candidates without getting any duplicates.
     rng = np.random.default_rng(seed)
-    weak_ids = sorted(rng.choice(candidate_ids, size=n_weak, replace=False).tolist())
+    weak_ids = sorted(rng.choice(candidate_ids, size=n_weak, replace=False).tolist()) # .tolist converts from numpy array to plain python list, sorting it again for a neat sorted file.
 
+    # Builds the two column manifest file with the study IDs of the gold list followed by the weak list, and then the label_source (whether the study id is gold or weak)
     manifest = pd.DataFrame(
         {
             "study_id": gold_ids + weak_ids,
@@ -100,19 +80,24 @@ def build_manifest(train: pd.DataFrame, seed: int = SEED, n_weak: int = N_WEAK) 
     )
     return manifest
 
-
+# This function checks the manifest file.
 def check_manifest(manifest: pd.DataFrame, train: pd.DataFrame, series: pd.DataFrame | None) -> None:
-    """Assertions that must hold before the manifest is written. Cheap, and they
-    catch the failure modes that would otherwise surface weeks later in training."""
-    assert list(manifest.columns) == ["study_id", "label_source"], "column contract changed"
-    assert manifest["study_id"].is_unique, "a study appears twice"
-    assert set(manifest["label_source"]) <= {"gold", "weak"}, "unknown label_source value"
-    assert set(manifest["study_id"]) <= set(train["StudyInstanceUID"]), "study id not in train.csv"
+    # Set of assert statements that checks:
+    # - Exactly two columns are expected
+    # - No Study appears twice
+    # - Only label values are weak or gold
+    # - Every ID exists in train.csv
+    # If the series CSV is available, every ID has at least one MRI series to select from.
+
+    assert list(manifest.columns) == ["study_id", "label_source"], "Columns expected have changed"
+    assert manifest["study_id"].is_unique, "A study has appeared twice"
+    assert set(manifest["label_source"]) <= {"gold", "weak"}, "A studies label source is not as expected"
+    assert set(manifest["study_id"]) <= set(train["StudyInstanceUID"]), "Study ID cannot be found in train.csv"
     if series is not None:
-        # Every study must have at least one series row, or Step 4 has nothing to select from.
-        assert set(manifest["study_id"]) <= set(series["StudyInstanceUID"]), "study id has no series rows"
+        # Every study must have at least one series row.
+        assert set(manifest["study_id"]) <= set(series["StudyInstanceUID"]), "Study ID does not have any Series rows."
 
-
+# This main function defines the command-line options.
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--train-csv", type=Path, default=DEFAULT_TRAIN_CSV)
@@ -122,15 +107,18 @@ def main() -> None:
     parser.add_argument("--n-weak", type=int, default=N_WEAK)
     args = parser.parse_args()
 
+    # Loads the two csvs into tables. 
     train = pd.read_csv(args.train_csv)
-    series = pd.read_csv(args.series_csv) if args.series_csv.exists() else None
+    series = pd.read_csv(args.series_csv) if args.series_csv.exists() else None # Series table load is optional
 
+    # Builds the manifest table and tehn verifies it
     manifest = build_manifest(train, seed=args.seed, n_weak=args.n_weak)
     check_manifest(manifest, train, series)
 
     # lineterminator is pinned so the file is byte-identical on macOS, Linux and Windows.
     # A manifest that differs only in line endings would show as a git diff for no reason.
-    manifest.to_csv(args.out, index=False, lineterminator="\n")
+    # Writes the file to csv. index=false stops pandas from adding unwanted row-number columns.
+    manifest.to_csv(args.out, index=False)
 
     counts = manifest["label_source"].value_counts()
     print(f"train.csv rows      : {len(train)}")
