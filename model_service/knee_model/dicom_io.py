@@ -1,18 +1,8 @@
-# Reads one MRI series (a folder of .dcm files) and turns it into a single, correctly ordered 3D block of numbers.
-#
-# A DICOM file is one 2D image plus a few hundred metadata fields. Three of those fields must be honoured
-# or the pixels are wrong, and one of them fails silently if ignored:
-#
-#   1. RescaleSlope / RescaleIntercept  - real = stored * slope + intercept. Puts every slice on the same brightness scale.
-#   2. PhotometricInterpretation        - MONOCHROME1 means low values are WHITE (a photo negative). Must be inverted.
-#   3. ImagePositionPatient             - where each slice sits in space. Files are NOT in anatomical order on disk.
-#
-# Usage:
-#     from model_service.knee_model.dicom_io import load_series
-#     series = load_series("/kaggle/input/.../train_series/<study>/<series>")
-#     series.volume.shape   -> (n_slices, height, width), float32, slices in anatomical order
-#
-# Step 3 of the Role 1 plan. Findings F3, F4 and F5 from Step 1 are implemented here and marked below.
+# This file reads one MRI series which is a folder of .dcm files, and turns in into a single, correctly ordered 3D block of numbers.
+# A DICOM file in one 2D image, plus a few hundred metadata header fields. Three of these fields affect how pixels are represented:
+# 1. RescaleSlope / RescaleIntercept - real = stored * slope + intercept. This puts every slice on the same brightness scale
+# 2. PhotometricInterpretation - MONOCHROME1 means low values are White (a photo negative), this must be inverted.
+# 3. ImagePositionPatient - Where each slice sits in space. Note that files are not in anatomical order in each folder. Order must be worked out
 
 from __future__ import annotations
 
@@ -25,19 +15,19 @@ import pydicom
 
 @dataclass
 class LoadedSeries:
-    """Everything load_series() learned about one series. The volume plus the metadata that travels with it."""
+    # Everything load_series() learned about one series.
 
-    volume: np.ndarray                  # (n_slices, height, width) float32, rescaled, inverted if needed, anatomically ordered
-    paths: list[Path]                   # the file each slice came from, in the same order as volume
-    instance_numbers: np.ndarray        # InstanceNumber per slice, in volume order. For cross-checking only.
-    slice_positions: np.ndarray         # each slice's distance along the slice normal, in mm, in volume order
-    slice_normal: np.ndarray            # the (x, y, z) direction the stack was sorted along
-    slice_spacing_mm: float             # median gap between consecutive slices
-    rescale_slope_constant: bool        # True if every slice had the same RescaleSlope (F3)
-    ordering_agrees: bool               # True if InstanceNumber order matches position order, forwards or backwards (F4)
-    photometric: str                    # MONOCHROME1 or MONOCHROME2, as found on disk
-    series_description: str             # e.g. "DP SPIR CS_SAG"
-    warnings: list[str] = field(default_factory=list)   # anything odd, so a batch run can log it rather than crash
+    volume: np.ndarray # The actual 3D Image, shape (slices, height, width) in float32 decimal type
+    paths: list[Path] # The list of files in the same order as the slices, so that any slice can be traced back to its file.
+    instance_numbers: np.ndarray # Scanner's own slice counter per slice. This is kept for cross-checking order of slices
+    slice_positions: np.ndarray  # Each slice's distance in millimeters along the stacking direction
+    slice_normal: np.ndarray # The stacking direction as an (x, y or z) arrow
+    slice_spacing_mm: float  # The typical gap between slices in millimeters
+    rescale_slope_constant: bool # True or False on whether the Rescale Slope is the same for all slices
+    ordering_agrees: bool # True if InstanceNumber order matches position order
+    photometric: str # MONOCHROME1 or MONOCHROME2
+    series_description: str # Doctor Description of that series, for example: "DP SPIR CS_SAG"
+    warnings: list[str] = field(default_factory=list) # anything odd, so a batch run can log it rather than crash
 
     @property
     def n_slices(self) -> int:
@@ -45,18 +35,17 @@ class LoadedSeries:
 
 
 def _slice_normal(ds: pydicom.Dataset) -> np.ndarray:
-    # F5. ImageOrientationPatient holds two unit vectors: the direction of a row of pixels and the direction of a
-    # column of pixels, in patient space. Their cross product points straight out of the image, i.e. along the
-    # direction slices are stacked. Sorting by distance along that direction is correct for any tilt of the scan.
-    iop = np.asarray(ds.ImageOrientationPatient, dtype=np.float64)
-    row_dir, col_dir = iop[:3], iop[3:]
+    # ImageOritentationPateient holds six numbers, two arrows fo three numbers each.
+    # The first arrow is the direction a row of pixels run through the pateient's body, whilst the second is the direction a column runs
+    iop = np.asarray(ds.ImageOrientationPatient, dtype=np.float64) # Turns these arrows into arrays
+    row_dir, col_dir = iop[:3], iop[3:] # iop[:3] is first three numbers, iop[3:] is the last three numbers 
     normal = np.cross(row_dir, col_dir)
     return normal / np.linalg.norm(normal)
 
 
 def _to_real_values(ds: pydicom.Dataset) -> np.ndarray:
-    # F3. Apply the scanner's stored-to-real mapping. .get() with defaults means a vendor that omits the tags
-    # gets a harmless "multiply by 1, add 0" rather than a crash.
+    # Scanner stores pixel values compactly, meaning they need to be converted to get the real pixels.
+    # real = stored * slope + intercept
     slope = float(ds.get("RescaleSlope", 1.0))
     intercept = float(ds.get("RescaleIntercept", 0.0))
     px = ds.pixel_array.astype(np.float32)
@@ -64,68 +53,77 @@ def _to_real_values(ds: pydicom.Dataset) -> np.ndarray:
 
 
 def load_series(series_dir: str | Path) -> LoadedSeries:
-    """Load every .dcm in a folder, fix the three metadata issues, and return the ordered volume with its metadata."""
+    # Loads every .dcm file in a folder, fixes the three metadata issues and returns the ordered volume, with its metadata.
+    
+    # Accepts the folder as a file path and then finds every file ending in .dcm. sorting makes the starting order predictable, it is not the actual order.
     series_dir = Path(series_dir)
     paths = sorted(series_dir.glob("*.dcm"))
     if not paths:
         raise FileNotFoundError(f"no .dcm files in {series_dir}")
-
+    
     warnings: list[str] = []
     datasets = [pydicom.dcmread(p) for p in paths]
 
-    # --- Step A: work out the anatomical order --------------------------------------------------------------
-    # Every slice in a series should share the same orientation, so take the normal from the first one.
+
+    # The below takes the first slice and check it has both geometry tags. If it does then it computes the normal. The single number slice is what is sorted by
     first = datasets[0]
+    
+    # Checks that the orientation and position is in the first dataset, as this is required for the normal and the position for the sort key.
     if "ImageOrientationPatient" in first and "ImagePositionPatient" in first:
         normal = _slice_normal(first)
-        # Distance of each slice along the normal. This one number per slice is what we sort by.
         positions = np.array([float(np.dot(np.asarray(ds.ImagePositionPatient, dtype=np.float64), normal)) for ds in datasets])
     else:
-        # Fallback for files with no geometry at all. Should never happen on this dataset; logged loudly if it does.
+        # Fallback for files with no geometry at all. Should never happen on this dataset though.
         warnings.append("no ImageOrientationPatient/ImagePositionPatient; fell back to InstanceNumber ordering")
         normal = np.array([np.nan, np.nan, np.nan])
         positions = np.array([float(ds.get("InstanceNumber", i)) for i, ds in enumerate(datasets)])
 
     order = np.argsort(positions, kind="stable")
+    # Reordering. Builds a new list by picking datasets in the correct sorted order.
     datasets = [datasets[i] for i in order]
     paths = [paths[i] for i in order]
     positions = positions[order]
 
-    # --- Step B: F4 cross-check. InstanceNumber is the scanner's own slice counter. ------------------------
-    # If it agrees with the geometric order (in either direction) we have two independent sources saying the same
-    # thing. If it does not, something is odd about this series and it must be looked at by a human.
-    instance_numbers = np.array([int(ds.get("InstanceNumber", -1)) for ds in datasets])
+    # The below gets the InstanceNumber order which is the scanner's own slice counter.
+    # This is another way of checking the order, comparing it against the geometric order obtained above.
+    # If they are queal then we have two independent sources saying the same order which we can proceed with.
+    # If it does not match, then something has not caculated right and must require human intervention.
+    instance_numbers = np.array([int(ds.get("InstanceNumber", -1)) for ds in datasets]) # Reads the scanner's slice counter from each file in new order.
     diffs = np.diff(instance_numbers)
-    ordering_agrees = bool(len(diffs) == 0 or np.all(diffs > 0) or np.all(diffs < 0))
+    # Compares every element and provides an array of true or false. True only if every element is truly in the correct order.
+    ordering_agrees = bool(len(diffs) == 0 or np.all(diffs > 0) or np.all(diffs < 0)) 
+    # If the ordering does not agree then warning is provided that includes the actual sequence
     if not ordering_agrees:
         warnings.append(f"InstanceNumber order disagrees with ImagePositionPatient order: {instance_numbers.tolist()}")
 
-    # --- Step C: F3 check. Is RescaleSlope the same on every slice? ------------------------------------------
-    # Philips can write a different slope per slice. If that happens, skipping the rescale would leave slices on
-    # different brightness scales inside one volume. We apply it regardless; this flag just tells us if it mattered.
+    # The scanner can write a different slope per slice, affecting brightness scales on the slice. 
     slopes = [float(ds.get("RescaleSlope", 1.0)) for ds in datasets]
-    rescale_slope_constant = bool(np.allclose(slopes, slopes[0]))
+    rescale_slope_constant = bool(np.allclose(slopes, slopes[0])) # True if every element is equal to eachother
+    # If not equal, then provide warning that there is a different in slope, from minimum value to maximum value. Rescale is still applied anyway
     if not rescale_slope_constant:
         warnings.append(f"RescaleSlope varies within series: min={min(slopes)} max={max(slopes)}")
 
     # --- Step D: pixels -> real values, then stack -----------------------------------------------------------
+    # Runs the second helper function on every slice. After it is ran, every slice is a list of 2D float32 arrays on the real brightness scale.
     slices = [_to_real_values(ds) for ds in datasets]
     shapes = {s.shape for s in slices}
+    # If the slices are different sizes, then they cannot be stacked into a rectangular block. There is no ability to continue on and will throw an error stopping from continuing this script.
     if len(shapes) != 1:
         raise ValueError(f"slices in {series_dir} have different pixel shapes: {sorted(shapes)}")
     volume = np.stack(slices).astype(np.float32)
 
-    # --- Step E: MONOCHROME1 inversion --------------------------------------------------------------------------
-    # MONOCHROME1 = smallest value is white. Flip it so that, like MONOCHROME2, bright means bright.
-    # Inverting as (max - value) keeps the values in the same range rather than making them negative.
-    photometric = str(first.get("PhotometricInterpretation", "MONOCHROME2"))
+    # MONOCHROME1 means that the smallest values are white, and the highest values are black, this is inverted to normal. We need to flip this
+    # Inverting as (max - value) keeps the values in the same range, avoiding making them negative.
+    photometric = str(first.get("PhotometricInterpretation", "MONOCHROME2")) # Reads the tag that says which way the brightness is.
+    # Default is MONOCHROME2. If MONOCHROME1, then it needs to invert as below:
     if photometric == "MONOCHROME1":
         volume = volume.max() - volume
         warnings.append("MONOCHROME1 series inverted")
 
-    # --- Step F: slice spacing, for the Step 5 sanity check that sampling evenly by index is even in mm ----------
+    # Provides the gaps between each slice.
     spacing = float(np.median(np.abs(np.diff(positions)))) if len(positions) > 1 else 0.0
 
+    # Returns a loadedseries which has all these details.
     return LoadedSeries(
         volume=volume,
         paths=paths,
