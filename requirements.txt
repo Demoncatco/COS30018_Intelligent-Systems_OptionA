@@ -1,5 +1,6 @@
 # Data Packages
 pydicom # Reads the DICOM files
+pillow # Image library, used to resize each MRI slice to 224 x 224 in preprocess.py.
 numpy
 pandas # Reads and works with tables. This will be used for train.csv
 scikit-learn # Machine Learning Toolbox, will be used for measuing how good the model works.
