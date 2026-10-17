@@ -13,3 +13,6 @@ __pycache__/
 
 # Competition data that may be downloaded and used for local testing
 data/
+# Model outputs and run logs
+logs/
+model_service/checkpoints/*.pt

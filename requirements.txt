@@ -10,10 +10,16 @@ requests # Makes web requests for python.
 sentence-transformers # Used to convert text into a vector representation that can be used for similarity search.
 python-dotenv # Loads environment variables from a .env file into the python environment. This is used to load the Tavily API key into the system without hardcoding it into the code.
 
+# Model Packages:
+torch # Trains and runs the knee model.
+torchvision # Provides the pretrained ResNet18 backbone.
+
 # API Packages:
 fastapi # Turns the python functions into web addresses
 uvicorn[standard] # Runs the server, fastapi describes the app, uvicorn serves it. 
 pydantic>=2 # Used to check that data is formatted correctly and in the right shape.
+httpx # Used by the shared LLM client (shared/llm.py) to call the local Ollama server.
+pydantic-settings # Reads settings from .env into one typed Settings object (shared/config.py).
 tavily-python # Used to make requests to the Tavily API for recommendations.
 
 # Orchestration Packages:
@@ -21,5 +27,5 @@ langgraph # Used to orchestrate the flow of data between the different agents of
 
 # Dev Testing Packages:
 pytest
-httpx2
+httpx2 # Used by FastAPI's TestClient (newer Starlette versions require it).
 ruff
