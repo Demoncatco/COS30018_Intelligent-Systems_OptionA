@@ -2,6 +2,7 @@
 
 Usage: python -m model_service.knee_model.train --train-csv ... --cache-dir ... --out-dir ... --version v0
 Add --weak-labels <file> once Person 2's labels exist.
+Add --split-csv <v0 splits.csv> to reuse v0's gold validation split for v1.
 """
 
 from __future__ import annotations
@@ -20,7 +21,12 @@ from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 
 from model_service.knee_model.dataset import KneeDataset, cache_file
-from model_service.knee_model.labels import build_label_table, label_arrays, positive_counts
+from model_service.knee_model.labels import (
+    WEAK_WEIGHT,
+    build_label_table,
+    label_arrays,
+    positive_counts,
+)
 from model_service.knee_model.model import KneeNet, save_checkpoint
 from shared.schema import FINDINGS, PLANES
 
@@ -38,6 +44,9 @@ class TrainConfig:
     freeze_epochs: int = 3
     plane_loss_weight: float = 0.3
     pos_weight_cap: float = 10.0
+    weak_weight: float = WEAK_WEIGHT  # recorded here; applied when the label table is built
+    grad_clip: float = 1.0  # max gradient norm; 0 turns clipping off
+    amp: bool = True  # mixed precision, GPU only
     n_val_gold: int = 14
     weak_val_fraction: float = 0.15
     patience: int = 5
@@ -74,6 +83,29 @@ def make_split(table: pd.DataFrame, n_val_gold: int, weak_val_fraction: float, s
         n_weak_val = int(round(len(weak) * weak_val_fraction))
         val_ids |= set(weak.loc[rng.choice(len(weak), size=n_weak_val, replace=False), "study_id"])
     split.loc[split["study_id"].isin(val_ids), "split"] = "val"
+    return split
+
+
+def reuse_split(previous: pd.DataFrame, table: pd.DataFrame, weak_val_fraction: float, seed: int) -> pd.DataFrame:
+    # Keeps an earlier run's gold validation studies (e.g. v0's splits.csv) so runs are compared on the same data.
+    # Weak studies keep their earlier assignment; weak studies new to this run are split at weak_val_fraction.
+    for column in ("study_id", "label_source", "split"):
+        if column not in previous.columns:
+            raise ValueError(f"the split file needs a '{column}' column")
+    previous_gold = set(previous.loc[previous["label_source"] == "gold", "study_id"])
+    current_gold = set(table.loc[table["label_source"] == "gold", "study_id"])
+    if previous_gold != current_gold:
+        raise ValueError(f"the gold studies differ from the split file ({len(previous_gold - current_gold)} only in the "
+                         f"file, {len(current_gold - previous_gold)} only in this run); check the cache and manifest")
+
+    split = pd.DataFrame({"study_id": table["study_id"], "label_source": table["label_source"]})
+    split["split"] = split["study_id"].map(previous.set_index("study_id")["split"])
+    new_weak = split.index[split["split"].isna()]
+    split.loc[new_weak, "split"] = "train"
+    if len(new_weak):
+        rng = np.random.default_rng(seed)
+        n_val = round(len(new_weak) * weak_val_fraction)
+        split.loc[rng.choice(new_weak, size=n_val, replace=False), "split"] = "val"
     return split
 
 
@@ -116,12 +148,12 @@ def _to_device(batch: dict, device: torch.device) -> dict:
 
 
 @torch.no_grad()
-def predict(model: KneeNet, loader: DataLoader, device: torch.device) -> pd.DataFrame:
+def predict(model: KneeNet, loader: DataLoader, device: torch.device, amp: bool = True) -> pd.DataFrame:
     model.eval()
     rows = []
     for batch in loader:
         batch = _to_device(batch, device)
-        with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
+        with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp and device.type == "cuda"):
             study_logits, plane_logits = model(batch["image"], batch["plane_mask"])
         study = torch.sigmoid(study_logits.float()).cpu().numpy()
         planes = torch.sigmoid(plane_logits.float()).cpu().numpy()
@@ -145,7 +177,12 @@ def per_finding_auc(predictions: pd.DataFrame, labels_table: pd.DataFrame) -> pd
     return pd.DataFrame(rows)
 
 
-def train(config: TrainConfig, label_table: pd.DataFrame, cache_dir: str | Path, out_dir: str | Path) -> dict:
+def _mean_auc(auc: pd.DataFrame) -> float:
+    return float(auc["auc"].mean(skipna=True)) if auc["auc"].notna().any() else float("nan")
+
+
+def train(config: TrainConfig, label_table: pd.DataFrame, cache_dir: str | Path, out_dir: str | Path,
+          previous_split: pd.DataFrame | None = None) -> dict:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(config.seed)
@@ -158,11 +195,15 @@ def train(config: TrainConfig, label_table: pd.DataFrame, cache_dir: str | Path,
     label_table = label_table[cached].reset_index(drop=True)
 
     positive_counts(label_table).to_csv(out_dir / "label_counts.csv", index=False)
-    split = make_split(label_table, config.n_val_gold, config.weak_val_fraction, config.seed)
+    if previous_split is None:
+        split = make_split(label_table, config.n_val_gold, config.weak_val_fraction, config.seed)
+    else:
+        split = reuse_split(previous_split, label_table, config.weak_val_fraction, config.seed)
     split.to_csv(out_dir / "splits.csv", index=False)
     train_table = label_table[split["split"].eq("train").to_numpy()]
     val_table = label_table[split["split"].eq("val").to_numpy()]
     val_gold = val_table[val_table["label_source"] == "gold"]
+    val_weak = val_table[val_table["label_source"] == "weak"]
     print(f"train: {len(train_table)} studies, val: {len(val_table)} ({len(val_gold)} gold)")
 
     train_labels, train_mask = label_arrays(train_table)
@@ -175,10 +216,23 @@ def train(config: TrainConfig, label_table: pd.DataFrame, cache_dir: str | Path,
     model = KneeNet(pretrained=config.pretrained, pooling=config.pooling).to(device)
     optimiser = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=max(config.epochs, 1))
-    scaler = torch.amp.GradScaler(device.type, enabled=device.type == "cuda")
+    use_amp = config.amp and device.type == "cuda"
+    scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
 
     sample = np.load(cache_file(cache_dir, train_table["study_id"].iloc[0]))["array"]
     shape_meta = {"n_slices": int(sample.shape[1]), "image_size": int(sample.shape[2])}
+
+    # Everything needed to reproduce or describe this run in the report.
+    run_info = {
+        "config": asdict(config), **shape_meta,
+        "n_train": len(train_table), "n_val": len(val_table), "n_val_gold": len(val_gold), "n_val_weak": len(val_weak),
+        "train_by_source": train_table["label_source"].value_counts().to_dict(),
+        "pos_weight": {name: round(float(w), 3) for name, w in zip(FINDINGS, pos_weight.cpu().tolist())},
+        "split_reused": previous_split is not None, "mixed_precision": use_amp,
+        "device": str(device), "gpu": torch.cuda.get_device_name(0) if device.type == "cuda" else None,
+        "torch": torch.__version__,
+    }
+    (out_dir / "run_config.json").write_text(json.dumps(run_info, indent=2))
 
     history, best_score, best_epoch, stale = [], -np.inf, -1, 0
     for epoch in range(config.epochs):
@@ -189,20 +243,28 @@ def train(config: TrainConfig, label_table: pd.DataFrame, cache_dir: str | Path,
         for batch in train_loader:
             batch = _to_device(batch, device)
             optimiser.zero_grad(set_to_none=True)
-            with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
+            with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=use_amp):
                 study_logits, plane_logits = model(batch["image"], batch["plane_mask"])
             loss = total_loss(study_logits, plane_logits, batch, pos_weight, config.plane_loss_weight)
+            if not torch.isfinite(loss):
+                raise FloatingPointError(f"loss became {loss.item()} in epoch {epoch + 1}; lower --lr or check the cache")
             scaler.scale(loss).backward()
+            if config.grad_clip > 0:
+                scaler.unscale_(optimiser)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
             scaler.step(optimiser)
             scaler.update()
             running, batches = running + loss.item(), batches + 1
         scheduler.step()
 
-        predictions = predict(model, val_loader, device)
+        predictions = predict(model, val_loader, device, amp=use_amp)
         auc_gold = per_finding_auc(predictions, val_gold)
-        mean_auc = float(auc_gold["auc"].mean(skipna=True)) if auc_gold["auc"].notna().any() else float("nan")
+        mean_auc = _mean_auc(auc_gold)
         entry = {"epoch": epoch + 1, "train_loss": running / max(batches, 1), "val_mean_auc_gold": mean_auc,
-                 "backbone_frozen": epoch < config.freeze_epochs, "seconds": round(time.perf_counter() - start, 1)}
+                 "lr": optimiser.param_groups[0]["lr"], "backbone_frozen": epoch < config.freeze_epochs,
+                 "seconds": round(time.perf_counter() - start, 1)}
+        if len(val_weak):
+            entry["val_mean_auc_weak"] = _mean_auc(per_finding_auc(predictions, val_weak))
         history.append(entry)
         print(json.dumps(entry))
 
@@ -244,15 +306,31 @@ def main() -> None:
     parser.add_argument("--n-val-gold", type=int, default=TrainConfig.n_val_gold)
     parser.add_argument("--num-workers", type=int, default=TrainConfig.num_workers)
     parser.add_argument("--no-pretrained", action="store_true")
+    parser.add_argument("--split-csv", type=Path, default=None,
+                        help="an earlier run's splits.csv; reuses its gold validation studies (use v0's for v1)")
+    parser.add_argument("--weak-weight", type=float, default=TrainConfig.weak_weight)
+    parser.add_argument("--pos-weight-cap", type=float, default=TrainConfig.pos_weight_cap)
+    parser.add_argument("--plane-loss-weight", type=float, default=TrainConfig.plane_loss_weight)
+    parser.add_argument("--weight-decay", type=float, default=TrainConfig.weight_decay)
+    parser.add_argument("--pooling", choices=["max", "mean"], default=TrainConfig.pooling)
+    parser.add_argument("--patience", type=int, default=TrainConfig.patience)
+    parser.add_argument("--seed", type=int, default=TrainConfig.seed)
+    parser.add_argument("--grad-clip", type=float, default=TrainConfig.grad_clip)
+    parser.add_argument("--no-amp", action="store_true", help="turn off mixed precision")
     args = parser.parse_args()
 
     manifest = pd.read_csv(args.manifest)
     weak = pd.read_csv(args.weak_labels) if args.weak_labels else None
-    table = build_label_table(pd.read_csv(args.train_csv), manifest, weak)
+    table = build_label_table(pd.read_csv(args.train_csv), manifest, weak, weak_weight=args.weak_weight)
+    previous_split = pd.read_csv(args.split_csv) if args.split_csv else None
     config = TrainConfig(version=args.version, epochs=args.epochs, batch_size=args.batch_size, lr=args.lr,
                          freeze_epochs=args.freeze_epochs, n_val_gold=args.n_val_gold,
-                         num_workers=args.num_workers, pretrained=not args.no_pretrained)
-    summary = train(config, table, args.cache_dir, args.out_dir)
+                         num_workers=args.num_workers, pretrained=not args.no_pretrained,
+                         weak_weight=args.weak_weight, pos_weight_cap=args.pos_weight_cap,
+                         plane_loss_weight=args.plane_loss_weight, weight_decay=args.weight_decay,
+                         pooling=args.pooling, patience=args.patience, seed=args.seed,
+                         grad_clip=args.grad_clip, amp=not args.no_amp)
+    summary = train(config, table, args.cache_dir, args.out_dir, previous_split=previous_split)
     print(f"best epoch {summary['best_epoch']}, gold val mean AUC {summary['best_val_mean_auc_gold']}")
 
 
