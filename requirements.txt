@@ -1,31 +1,34 @@
+# Python 3.10+. Install from the repo root: pip install -r requirements.txt
+# Lower bounds keep out old versions that lack features the code uses. Tested with current releases.
+
 # Data Packages
-pydicom # Reads the DICOM files
-pillow # Image library, used to resize each MRI slice to 224 x 224 in preprocess.py.
-numpy
-pandas # Reads and works with tables. This will be used for train.csv
-scikit-learn # Machine Learning Toolbox, will be used for measuing how good the model works.
+pydicom>=2.4 # Reads the DICOM files
+pillow>=10.0 # Image library, used to resize each MRI slice to 224 x 224 in preprocess.py.
+numpy>=1.26
+pandas>=2.0 # Reads and works with tables. This will be used for train.csv
+scikit-learn>=1.3 # Machine Learning Toolbox, will be used for measuring how good the model works.
 matplotlib # Draws charts and shows images, will be used to look at the scans and plot training progress.
 tqdm # Used to track progress of a loop.
-requests # Makes web requests for python. 
+requests # Makes web requests for python.
 sentence-transformers # Used to convert text into a vector representation that can be used for similarity search.
-python-dotenv # Loads environment variables from a .env file into the python environment. This is used to load the Tavily API key into the system without hardcoding it into the code.
+python-dotenv # Loads .env for scripts that do not go through shared/config.py (which reads .env itself via pydantic-settings).
 
 # Model Packages:
-torch # Trains and runs the knee model.
-torchvision # Provides the pretrained ResNet18 backbone.
+torch>=2.1 # Trains and runs the knee model. Only needed for training and MODEL_MODE=live; stub and replay run without it.
+torchvision>=0.16 # Provides the pretrained ResNet18 backbone and transforms.v2 used for augmentation.
 
 # API Packages:
-fastapi # Turns the python functions into web addresses
-uvicorn[standard] # Runs the server, fastapi describes the app, uvicorn serves it. 
-pydantic>=2 # Used to check that data is formatted correctly and in the right shape.
-httpx # Used by the shared LLM client (shared/llm.py) to call the local Ollama server.
-pydantic-settings # Reads settings from .env into one typed Settings object (shared/config.py).
+fastapi>=0.110 # Turns the python functions into web addresses
+uvicorn[standard] # Runs the server, fastapi describes the app, uvicorn serves it.
+pydantic>=2.6 # Used to check that data is formatted correctly and in the right shape.
+pydantic-settings>=2.2 # Reads settings from .env into one typed Settings object (shared/config.py).
+httpx>=0.27 # Used by the shared LLM client (shared/llm.py) to call the local Ollama server.
 tavily-python # Used to make requests to the Tavily API for recommendations.
 
 # Orchestration Packages:
 langgraph # Used to orchestrate the flow of data between the different agents of the system.
 
 # Dev Testing Packages:
-pytest
-httpx2 # Used by FastAPI's TestClient (newer Starlette versions require it).
+pytest>=8
+httpx2 # Used by FastAPI's TestClient (newer Starlette versions require it instead of httpx).
 ruff

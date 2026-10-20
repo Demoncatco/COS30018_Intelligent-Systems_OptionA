@@ -1,9 +1,10 @@
-# The contract that will be used between the detection model and the other agents such as the diagnostic and recommendation agennts
+# The contract that will be used between the detection model and the other agents such as the diagnostic and recommendation agents
 
+import time
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # The findings are the 12 anomalies listed exactly as they are in the train.csv columns.
 FINDINGS: list[str] = [
@@ -174,6 +175,38 @@ class PredictionResponse(BaseModel):
 
 
 # ============================================================
+# Model Service replay file (MODEL_MODE=replay)
+# ============================================================
+# Written on Kaggle by model_service/knee_model/export_predictions.py, read by the Model Service in replay mode.
+# Each entry is exactly what /predict would have returned for that study, so replay and live answers look the same.
+class ReplayPredictionsFile(BaseModel):
+    format_version: Literal[1] = Field(default=1, description="Bump this if the file layout ever changes.")
+    model_version: str = Field(
+        min_length=1,
+        description="Version of the checkpoint that produced every prediction in the file, e.g. 'knee_v1'.",
+    )
+    created_at: str = Field(default="", description="UTC time the file was exported, ISO 8601.")
+    source: str = Field(
+        default="",
+        description="Where the predictions came from, e.g. 'kaggle: knee_v1.pt on splits.csv val (72 studies)'.",
+    )
+    predictions: list[PredictionResponse] = Field(description="One entry per study, at most once each.")
+
+    @model_validator(mode="after")
+    def _check_entries(self) -> "ReplayPredictionsFile":
+        if self.model_version.startswith("stub-"):
+            raise ValueError("a replay file must come from a trained checkpoint, not the stub model")
+        ids = [p.study_id for p in self.predictions]
+        duplicates = sorted({study_id for study_id in ids if ids.count(study_id) > 1})
+        if duplicates:
+            raise ValueError(f"study_id appears more than once: {duplicates[:5]}")
+        wrong = sorted({p.model_version for p in self.predictions} - {self.model_version})
+        if wrong:
+            raise ValueError(f"every prediction must have model_version {self.model_version!r}, found {wrong}")
+        return self
+
+
+# ============================================================
 # Coordinator Agent <-> Diagnostic Agent contract
 # ============================================================
 class DiagnosticDecision(str, Enum):
@@ -200,14 +233,14 @@ class DiagnosticAgentRequest(BaseModel):
     task_type: str = Field(
         default="initial",
         description=(
-            'Either "initial" or "recheck: <specific ask>'
+            'Either "initial" or "recheck: <specific ask>".'
         ),
     )
 
     focus_findings: list[str] = Field(
         default_factory=list,
         description=(
-            "Findsing to re-examine during recheck."
+            "Findings to re-examine during a recheck. Empty for an initial run."
         ),
     )
 
@@ -294,6 +327,7 @@ class DiagnosticAgentResponse(BaseModel):
                     "cross_plane_variance": {},
                     "quality_flags": [],
                     "laterality": "left",
+                    "impression": "Likely ACL tear; no other finding above threshold.",
                     "trace": [
                         "QC passed: all 3 planes present, slice counts nominal.",
                         "Called Model Service /predict.",
@@ -321,6 +355,15 @@ class EvidenceStatus(str, Enum):
     NO_CREDIBLE_SOURCE_FOUND = "no_credible_source_found"
 
 
+# Entered by the user in the UI, kept in SessionState and passed on to the Recommendation Agent (tutor feedback:
+# the Recommendation Agent should see the Diagnostic Agent's initial guess together with the patient metadata).
+class PatientMetadata(BaseModel):
+    age: int | None = Field(default=None, ge=0, le=120)
+    sex: Literal["female", "male", "other", "unknown"] = "unknown"
+    symptoms: str = Field(default="", max_length=1000, description="Free text, e.g. 'pain after twisting, swelling'.")
+    injury_mechanism: str = Field(default="", max_length=500)
+
+
 class CoordinatorRequest(BaseModel):
     # Sent from the Coordinator Agent to the Recommendation Agent
 
@@ -342,6 +385,10 @@ class CoordinatorRequest(BaseModel):
     impression: str = Field(
         default="",
         description="The Diagnostic Agent's initial impression, passed through unchanged by the Coordinator.",
+    )
+    patient_metadata: PatientMetadata = Field(
+        default_factory=PatientMetadata,
+        description="Age, sex, symptoms and injury mechanism from the UI. All fields optional.",
     )
 
     # Reuses the SAME validator
@@ -383,13 +430,6 @@ class RecommendationResponse(BaseModel):
 # ============================================================
 # Coordinator <-> UI contract
 # ============================================================
-
-class PatientMetadata(BaseModel):
-    age: int | None = Field(default=None, ge=0, le=120)
-    sex: Literal["female", "male", "other", "unknown"] = "unknown"
-    symptoms: str = Field(default="", max_length=1000, description="Free text, e.g. 'pain after twisting, swelling'.")
-    injury_mechanism: str = Field(default="", max_length=500)
-
 
 class AgentName(str, Enum):
     COORDINATOR = "coordinator"
@@ -468,3 +508,104 @@ class FinalReport(BaseModel):
     @classmethod
     def _disclaimer_cannot_be_removed(cls, text: str) -> str:
         return text if DISCLAIMER in text else f"{text}\n\n{DISCLAIMER}".strip()
+
+
+# ============================================================
+# Coordinator shared state
+# ============================================================
+
+# Statuses a session can finish in. PENDING and RUNNING are the only ones that can still change.
+TERMINAL_STATUSES: frozenset[SessionStatus] = frozenset(
+    {SessionStatus.COMPLETED, SessionStatus.PARTIAL, SessionStatus.INCONCLUSIVE, SessionStatus.FAILED}
+)
+
+
+class SessionState(BaseModel):
+    # The Coordinator's shared state for one run. Agents never talk to each other directly: every request, result,
+    # error and trace event goes through here, and the backend reads it to answer GET /sessions/{id}.
+    session_id: str = Field(min_length=1)
+    study_id: str = Field(min_length=1)
+    patient_metadata: PatientMetadata = Field(default_factory=PatientMetadata)
+    produced_by: Literal["multi_agent", "baseline"] = "multi_agent"
+    status: SessionStatus = SessionStatus.PENDING
+    created_at: float = Field(default_factory=time.time, description="Unix time in seconds.")
+    updated_at: float = Field(default_factory=time.time, description="Unix time in seconds.")
+
+    diagnostic_results: list[DiagnosticAgentResponse] = Field(
+        default_factory=list, description="One entry per Diagnostic Agent run: the initial run, then each recheck."
+    )
+    recommendation_results: list[RecommendationResponse] = Field(
+        default_factory=list, description="One entry per Recommendation Agent run."
+    )
+    recheck_rounds: int = Field(default=0, ge=0, description="Coordinator -> Diagnostic rechecks done so far.")
+    coordinator_steps: int = Field(default=0, ge=0, description="Coordinator loop iterations, capped by MAX_COORDINATOR_STEPS.")
+
+    disagreements: list[str] = Field(default_factory=list, description="Open Diagnostic/Recommendation disagreements.")
+    errors: list[str] = Field(default_factory=list, description="Every error recorded during the run, newest last.")
+    user_action: str = Field(default="", description="What the user should do next, e.g. re-upload an axial series.")
+    events: list[AgentEvent] = Field(default_factory=list, description="The live trace, in seq order.")
+    final_report: FinalReport | None = None
+
+    @model_validator(mode="after")
+    def _events_belong_to_this_session(self) -> "SessionState":
+        stray = sorted({e.session_id for e in self.events} - {self.session_id})
+        if stray:
+            raise ValueError(f"events from other sessions: {stray}")
+        return self
+
+    # --- Read helpers ---
+
+    @property
+    def latest_diagnostic(self) -> DiagnosticAgentResponse | None:
+        return self.diagnostic_results[-1] if self.diagnostic_results else None
+
+    @property
+    def latest_recommendation(self) -> RecommendationResponse | None:
+        return self.recommendation_results[-1] if self.recommendation_results else None
+
+    @property
+    def is_finished(self) -> bool:
+        return self.status in TERMINAL_STATUSES
+
+    @property
+    def total_tokens(self) -> int:
+        return sum((e.tokens_in or 0) + (e.tokens_out or 0) for e in self.events)
+
+    @property
+    def total_latency_ms(self) -> float:
+        return sum(e.latency_ms or 0.0 for e in self.events)
+
+    def can_recheck(self, max_rounds: int) -> bool:
+        return self.recheck_rounds < max_rounds
+
+    # --- Write helpers (the only way the Coordinator should add to the trace) ---
+
+    def add_event(
+        self,
+        agent: AgentName,
+        kind: Literal["decision", "tool_call", "tool_result", "message", "error", "status"],
+        message: str,
+        data: dict | None = None,
+        tokens_in: int | None = None,
+        tokens_out: int | None = None,
+        latency_ms: float | None = None,
+    ) -> AgentEvent:
+        # Numbers the event, timestamps it and appends it. Returns it so the caller can also write it to the trace file.
+        event = AgentEvent(
+            session_id=self.session_id, seq=len(self.events), timestamp=time.time(), agent=agent, kind=kind,
+            message=message, data=data or {}, tokens_in=tokens_in, tokens_out=tokens_out, latency_ms=latency_ms,
+        )
+        self.events.append(event)
+        self.updated_at = event.timestamp
+        return event
+
+    def add_error(self, agent: AgentName, message: str, data: dict | None = None) -> AgentEvent:
+        self.errors.append(f"{AgentName(agent).value}: {message}")
+        return self.add_event(agent, "error", message, data)
+
+    def set_status(self, status: SessionStatus, message: str = "") -> AgentEvent:
+        if self.is_finished and status != self.status:
+            raise ValueError(f"session already finished as {self.status.value}; cannot move to {SessionStatus(status).value}")
+        self.status = SessionStatus(status)
+        return self.add_event(AgentName.COORDINATOR, "status", message or f"status: {self.status.value}",
+                              {"status": self.status.value})
