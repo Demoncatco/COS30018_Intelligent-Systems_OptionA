@@ -23,7 +23,7 @@ evidence-backed recommendations.
 10. [Configuration and secrets](#10-configuration-and-secrets)
 11. [Testing](#11-testing)
 12. [Logging and traces](#12-logging-and-traces)
-13. [Open items in the shared contract](#14-open-items-in-the-shared-contract)
+13. [Open items in the shared contract](#13-open-items-in-the-shared-contract)
 
 ---
 
@@ -137,10 +137,12 @@ Add new flags here before using them. Format: `lower_snake_case`, with `:<detail
 | Term | Meaning |
 |---|---|
 | **gold label** | One of the 58 studies with all 12 findings filled in `train.csv`. Weight `1.0`. |
-| **weak label** | A study whose labels come from keyword rules over its written report. Weight `0.5`. 250 weak studies are in `manifest.csv`. |
+| **weak label** | A study whose labels come from keyword rules over its written report. Weight `0.5` (`--weak-weight`). 250 weak studies are in `manifest.csv`. |
+| **weak label file** | The weak labeller's CSV: `study_id` + the 12 `FINDINGS` columns. Cells are `1` present, `0` absent/normal, `-1` hedged ("possible"), blank not mentioned; `-1` and blank both become unknown. Any other value is rejected. |
 | **label_source** | Column value `"gold"` or `"weak"`. |
 | **manifest** | `model_service/knee_model/manifest.csv`: the working subset (`study_id, label_source, fallback_level`). |
 | **unknown label** | `NaN` in a label cell. Masked out of the loss, never treated as 0. |
+| **splits.csv** | Which studies are `train` or `val` in a run. v1 reuses v0's file (`--split-csv`) so both are scored on the same gold validation studies. |
 
 ### 3.6 Agent and session vocabulary
 
@@ -158,7 +160,7 @@ Add new flags here before using them. Format: `lower_snake_case`, with `:<detail
 | **evidence_status** (`EvidenceStatus`) | `grounded_local`, `grounded_web`, `no_credible_source_found` | Where the recommendation's evidence came from. `no_credible_source_found` must be shown as a gap, never filled with invented text. |
 | **session status** (`SessionStatus`) | `pending`, `running`, `completed`, `partial`, `inconclusive`, `failed` | See below. |
 | **event kind** (`AgentEvent.kind`) | `decision`, `tool_call`, `tool_result`, `message`, `error`, `status` | One line of the live trace in the UI. |
-| **model mode** (`MODEL_MODE`) | `stub`, `replay`, `live` | How the Model Service produces scores (see §8). |
+| **model mode** (`MODEL_MODE`) | `stub`, `replay`, `live` | How the Model Service produces scores (see section 8). |
 
 Session status meanings:
 
@@ -252,10 +254,10 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   │   ├── manifest.csv         ✅
 │   │   ├── series_selection.csv ✅
 │   │   ├── dataset.py           ✅ float16 .npz cache + training Dataset
-│   │   ├── labels.py            ✅ gold + weak label merge with sample weights
-│   │   ├── model.py             ✅ KneeNet (see §9)
-│   │   ├── train.py             ✅ training loop, split, checkpoint
-│   │   └── evaluate.py          ⬜ per-finding AUC and calibration (Person 4)
+│   │   ├── labels.py            ✅ gold + weak label merge, weak file validation, template/check CLI
+│   │   ├── model.py             ✅ KneeNet (see section 9)
+│   │   ├── train.py             ✅ training loop, split (reusable across runs), checkpoint
+│   │   └── evaluate.py          ⬜ per-finding AUC and calibration
 │   ├── checkpoints/             (git-ignored *.pt; predictions.json goes here for replay mode)
 │   ├── notebooks/               Kaggle notebooks
 │   └── tests/                   ✅ model-service tests
@@ -358,6 +360,8 @@ study score is the average over the planes that are present (missing planes are 
 - Output: study logits `(batch, 12)` and per-plane logits `(batch, 3, 12)`
 - Loss: masked binary cross-entropy with capped `pos_weight` for rare findings, plus an auxiliary
   per-plane loss (weight `0.3`); gold and weak labels weighted `1.0` / `0.5`
+- Optimiser: AdamW with cosine decay, gradient clipping (norm `1.0`), mixed precision on GPU
+  (`--no-amp` to turn it off); the backbone is frozen for the first 3 epochs
 
 Steps (run on a Kaggle notebook with the RSNA dataset attached):
 
@@ -368,17 +372,40 @@ python -m model_service.knee_model.dataset \
     --series-csv <path>/train_series.csv \
     --cache-dir <cache-dir>
 
-# 2. Train. Leave out --weak-labels for a gold-only v0 run.
+# 2. v0: gold labels only
 python -m model_service.knee_model.train \
     --train-csv <path>/train.csv \
     --cache-dir <cache-dir> \
-    --out-dir <out-dir> \
-    --version v0 \
-    [--weak-labels <weak_labels.csv>]
+    --out-dir runs/v0 \
+    --version v0
+
+# 3. v1: gold + weak, reusing v0's gold validation split so the two runs are comparable
+python -m model_service.knee_model.train \
+    --train-csv <path>/train.csv \
+    --cache-dir <cache-dir> \
+    --out-dir runs/v1 \
+    --version v1 \
+    --weak-labels <weak_labels.csv> \
+    --split-csv runs/v0/splits.csv
 ```
 
-Outputs in `--out-dir`: `knee_<version>.pt`, `splits.csv` (the fixed gold validation split),
-`val_predictions.csv`, `val_auc.csv`, `label_counts.csv`, `history.json`.
+Outputs in `--out-dir`: `knee_<version>.pt`, `splits.csv` (the gold validation split),
+`val_predictions.csv`, `val_auc.csv`, `label_counts.csv`, `run_config.json` (config, per-finding
+`pos_weight`, split sizes, GPU and torch version) and `history.json` (per-epoch loss, learning rate and
+validation AUC, with weak validation AUC once weak labels are used).
+
+Other training options: `--weak-weight`, `--pos-weight-cap`, `--plane-loss-weight`, `--pooling`
+(`max`/`mean`), `--patience`, `--seed`, `--weight-decay`, `--grad-clip`. Run with `--help` for defaults.
+
+Weak label helpers:
+
+```bash
+# Empty file in the agreed format, one row per weak study in the manifest
+python -m model_service.knee_model.labels template --out weak_labels_template.csv
+
+# Validate a filled-in file and print positives / negatives / unknowns per finding
+python -m model_service.knee_model.labels check --weak weak_labels.csv
+```
 
 Checkpoints are git-ignored. Share them through the agreed team storage and record the version used in
 `MODEL_CHECKPOINT`.
@@ -403,7 +430,7 @@ All settings are read by `shared/config.py` from environment variables or `.env`
 | `TOOL_TIMEOUT_S` | `60` | Timeout for any agent tool call |
 | `MAX_RECHECK_ROUNDS` | `2` | Coordinator recheck limit |
 | `MAX_COORDINATOR_STEPS` | `12` | Hard stop for the Coordinator loop |
-| `REPORT_THRESHOLD` / `LOW_CONFIDENCE_THRESHOLD` | `0.5` / `0.6` | See §3.3 |
+| `REPORT_THRESHOLD` / `LOW_CONFIDENCE_THRESHOLD` | `0.5` / `0.6` | See section 3.3 |
 | `TAVILY_API_KEY` | — | Web search for the Recommendation Agent (secret) |
 | `LOG_LEVEL` / `LOG_DIR` | `INFO` / `logs` | Logging |
 
@@ -451,4 +478,5 @@ Known gaps to close; tick them off as PRs merge.
 - [ ] Implement `replay` and `live` modes in the Model Service.
 - [ ] Align the comment in `model_service/api/main.py` (port 8000) with `MODEL_SERVICE_URL` (port 8001).
 - [ ] Define the format of the Kaggle-exported `predictions.json` for replay mode.
-- [ ] Agree the weak-label CSV format with Person 2 (`study_id` + the 12 `FINDINGS` columns, 1/0/blank).
+- [ ] Confirm the weak-label CSV format with the weak labeller (`study_id` + the 12 `FINDINGS` columns; 1/0/-1/blank,
+      see section 3.5). `labels.py` now enforces it.
