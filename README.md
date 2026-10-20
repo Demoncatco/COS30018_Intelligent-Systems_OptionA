@@ -193,6 +193,8 @@ of truth: if you need a new field, change it there (in its own PR) and update th
 | Coordinator / Baseline → UI | — | `FinalReport` (containing `ReportedFinding`s) |
 | Every agent → UI trace | — | `AgentEvent` |
 | UI → Backend | `PatientMetadata` (age, sex, symptoms, injury mechanism) | — |
+| Coordinator (internal) | — | `SessionState`: the one shared state per run (diagnostic and recommendation results per round, recheck count, errors, trace events, final report). Add events with `add_event` / `add_error` / `set_status`, never by appending to `events` directly |
+| Kaggle export → Model Service | `ReplayPredictionsFile` (`predictions.json`) | — |
 
 Rules every contract follows:
 
@@ -244,7 +246,7 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 ├── frontend/src/                ⬜ React frontend
 ├── index.html, script.js, style.css   🟡 static UI prototype
 ├── model_service/
-│   ├── api/main.py              🟡 Model Service API (currently stub mode only)
+│   ├── api/main.py              ✅ Model Service API (stub, replay and live modes)
 │   ├── knee_model/
 │   │   ├── dicom_io.py          ✅ DICOM series → ordered 3D volume
 │   │   ├── series_selection.py  ✅ picks one series per plane (fallback levels 1–3)
@@ -257,6 +259,8 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   │   ├── labels.py            ✅ gold + weak label merge, weak file validation, template/check CLI
 │   │   ├── model.py             ✅ KneeNet (see section 9)
 │   │   ├── train.py             ✅ training loop, split (reusable across runs), checkpoint
+│   │   ├── inference.py         ✅ checkpoint → PredictionResponse (shared by live mode and the exporter)
+│   │   ├── export_predictions.py ✅ Kaggle: writes predictions.json for replay mode
 │   │   └── evaluate.py          ⬜ per-finding AUC and calibration
 │   ├── checkpoints/             (git-ignored *.pt; predictions.json goes here for replay mode)
 │   ├── notebooks/               Kaggle notebooks
@@ -330,7 +334,45 @@ Interactive docs: <http://localhost:8001/docs>. Health check: `GET /health`.
 | `replay` | Reads `predictions.json` exported from Kaggle | Running the full system without a GPU or the dataset |
 | `live` | Runs the checkpoint on local DICOMs in `data/` | Final demo, if hardware allows |
 
-Only `stub` is implemented so far.
+All three modes return the same `PredictionResponse`. `GET /health` reports the mode and model version
+(HTTP 503 with the reason if a replay file or checkpoint is missing), and `GET /studies` lists the study IDs
+replay or live mode can score. A study that is not available returns **404**; agents should treat that as a
+failed tool call, not retry it.
+
+**Replay mode setup (no GPU needed).** On Kaggle, after training:
+
+```bash
+python -m model_service.knee_model.export_predictions \
+    --checkpoint /kaggle/working/run_v1/knee_v1.pt \
+    --cache-dir /kaggle/working/cache \
+    --dataset-root /kaggle/input/rsna-knee-abnormality-detection \
+    --series-csv /kaggle/input/rsna-knee-abnormality-detection/train_series.csv \
+    --out /kaggle/working/predictions.json
+```
+
+It scores the validation studies in the run's `splits.csv` by default (`--split val`), so the agent
+evaluation only ever sees studies the model was not trained on. Download `predictions.json` to
+`model_service/checkpoints/predictions.json`, set `MODEL_MODE=replay` in `.env`, restart the service.
+
+`predictions.json` format (`ReplayPredictionsFile` in `shared/schema.py`):
+
+```json
+{
+  "format_version": 1,
+  "model_version": "knee_v1",
+  "created_at": "2026-10-28T09:15:00+00:00",
+  "source": "kaggle: knee_v1.pt on splits.csv val (72 studies)",
+  "predictions": [ { "...one PredictionResponse per study..." } ]
+}
+```
+
+The file is refused if a study appears twice, if entries come from different checkpoints, or if the
+`model_version` is a `stub-*` one. `latency_ms` in replay answers is the service's own lookup time;
+model inference time for the report comes from live mode or the Kaggle run.
+
+**Live mode setup.** Put the checkpoint at `MODEL_CHECKPOINT`, the DICOMs under
+`LIVE_DATASET_ROOT/LIVE_SPLIT_FOLDER/<study>/<series>/*.dcm` and `train_series.csv` at `LIVE_SERIES_CSV`.
+Live mode reads the input size from the checkpoint, so it always matches training.
 
 ### 8.2 Backend and agents ⬜
 
@@ -427,6 +469,8 @@ All settings are read by `shared/config.py` from environment variables or `.env`
 | `MODEL_SERVICE_URL` | `http://localhost:8001` | Where agents call `/predict` |
 | `MODEL_MODE` | `stub` | `stub`, `replay` or `live` |
 | `MODEL_CHECKPOINT` / `REPLAY_PREDICTIONS` | `model_service/checkpoints/...` | Model files |
+| `LIVE_DATASET_ROOT` / `LIVE_SERIES_CSV` / `LIVE_SPLIT_FOLDER` | `data/rsna-knee/...` / `train_series` | Local DICOMs for live mode |
+| `MODEL_DEVICE` | `auto` | `auto`, `cpu` or `cuda` for live mode |
 | `TOOL_TIMEOUT_S` | `60` | Timeout for any agent tool call |
 | `MAX_RECHECK_ROUNDS` | `2` | Coordinator recheck limit |
 | `MAX_COORDINATOR_STEPS` | `12` | Hard stop for the Coordinator loop |
@@ -471,12 +515,12 @@ endpoints, and the disclaimer always being present.
 
 Known gaps to close; tick them off as PRs merge.
 
-- [ ] Add `SessionState` (the Coordinator's shared state: request, diagnostic result, recommendation,
+- [x] Add `SessionState` (the Coordinator's shared state: request, diagnostic result, recommendation,
       recheck rounds, errors, events) to `shared/schema.py`.
-- [ ] Carry the patient metadata and the Diagnostic Agent's impression to the Recommendation Agent
-      (tutor feedback): `CoordinatorRequest` has `impression` but no `PatientMetadata` field yet.
-- [ ] Implement `replay` and `live` modes in the Model Service.
-- [ ] Align the comment in `model_service/api/main.py` (port 8000) with `MODEL_SERVICE_URL` (port 8001).
-- [ ] Define the format of the Kaggle-exported `predictions.json` for replay mode.
+- [x] Carry the patient metadata and the Diagnostic Agent's impression to the Recommendation Agent
+      (tutor feedback): `CoordinatorRequest.patient_metadata` (optional, defaults to all-unknown).
+- [x] Implement `replay` and `live` modes in the Model Service.
+- [x] Align the comment in `model_service/api/main.py` (port 8000) with `MODEL_SERVICE_URL` (port 8001).
+- [x] Define the format of the Kaggle-exported `predictions.json` for replay mode (section 8.1).
 - [ ] Confirm the weak-label CSV format with the weak labeller (`study_id` + the 12 `FINDINGS` columns; 1/0/-1/blank,
       see section 3.5). `labels.py` now enforces it.
