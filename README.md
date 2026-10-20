@@ -62,7 +62,7 @@ whose output it adjudicates.
 | Member | Owns |
 |---|---|
 | **Ren** | Coordinator Agent, FastAPI backend, baseline, shared config/logging/secrets · detection model architecture and training |
-| **Justin** | Role placeholder |
+| **Justin** | Evaluation Agent, Agent training and evaluation, data visualisation, Evaluation model testing  |
 | **Christina** | Role placeholder |
 | **Harsh** | Role placeholder |
 | **Xavier** | Role placeholder |
