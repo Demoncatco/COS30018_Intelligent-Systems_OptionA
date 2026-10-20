@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     model_mode: Literal["stub", "replay", "live"] = "stub"
     model_checkpoint: str = "model_service/checkpoints/knee_v1.pt"
     replay_predictions: str = "model_service/checkpoints/predictions.json"
+    # live mode only: where the Kaggle DICOMs and train_series.csv were downloaded to
+    live_dataset_root: str = "data/rsna-knee"
+    live_series_csv: str = "data/rsna-knee/train_series.csv"
+    live_split_folder: str = "train_series"
+    model_device: Literal["auto", "cpu", "cuda"] = "auto"
 
     # --- Coordinator ---
     tool_timeout_s: float = Field(default=60.0, gt=0)

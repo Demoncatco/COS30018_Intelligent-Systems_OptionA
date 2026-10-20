@@ -11,10 +11,12 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from model_service.api.main import MODEL_VERSION, app
+from model_service.api.main import MODEL_VERSION, create_app
+from shared.config import Settings
 from shared.schema import FINDINGS, PLANES, PredictionResponse
 
-client = TestClient(app)
+# Built in stub mode explicitly, so a MODEL_MODE=replay or live in someone's .env cannot change these tests.
+client = TestClient(create_app(Settings(model_mode="stub")))
 
 # Health Check. Sends a GET to /health, checks that status is 200 (this is HTTP's success), then response.json converts the reply JSON text to python dictionary
 def test_health_returns_ok():
@@ -24,6 +26,7 @@ def test_health_returns_ok():
     # Below asserts check that the ok and version matches.
     assert body["status"] == "ok"
     assert body["model_version"] == MODEL_VERSION
+    assert body["mode"] == "stub"
 
 
 # Valid Prediction check. Sends a POST to /predict with a body of {"study_id": "study-001"}
