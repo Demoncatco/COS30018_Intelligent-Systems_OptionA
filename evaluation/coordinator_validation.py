@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="auto = tools for Qwen, json for MedGemma")
     parser.add_argument("--model", help="Ollama tag for the Coordinator (default: COORDINATOR_MODEL)")
     parser.add_argument("--compare", action="store_true", help="run Qwen (tools), MedGemma (json) and fixed")
-    parser.add_argument("--medgemma-model", help="MedGemma tag for --compare (default: RECOMMENDATION_MODEL)")
+    parser.add_argument("--medgemma-model", help="MedGemma tag for --compare (default: DIAGNOSTIC_MODEL)")
     parser.add_argument("--only", help="comma-separated scenario ids, e.g. S06,S12")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
@@ -229,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.compare:
         configs = [RunConfig("tools", args.model or base.coordinator_model),
-                   RunConfig("json", args.medgemma_model or base.recommendation_model),
+                   RunConfig("json", args.medgemma_model or base.diagnostic_model),
                    RunConfig("fixed", "-")]
     else:
         model = args.model or base.coordinator_model

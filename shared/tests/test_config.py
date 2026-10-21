@@ -12,8 +12,14 @@ def _settings(**values) -> Settings:
 
 def test_defaults_match_the_agreed_models():
     s = _settings()
-    assert s.model_for("diagnostic").startswith("qwen") and s.model_for("coordinator").startswith("qwen")
-    assert s.model_for("recommendation").startswith("medgemma") and s.model_for("baseline") == s.recommendation_model
+    assert s.model_for("diagnostic").startswith("medgemma") and s.model_for("baseline").startswith("medgemma")
+    assert s.model_for("coordinator").startswith("qwen") and s.model_for("recommendation").startswith("qwen")
+
+
+def test_only_qwen_agents_use_native_tool_calls():
+    s = _settings()
+    assert s.uses_tool_calls("coordinator") and s.uses_tool_calls("recommendation")
+    assert not s.uses_tool_calls("diagnostic") and not s.uses_tool_calls("baseline")
 
 
 @pytest.mark.parametrize("tag", ["qwen3", "qwen3:latest", "qwen3:", "registry:5000/qwen3"])
@@ -35,8 +41,15 @@ def test_models_can_come_from_environment_variables(monkeypatch):
 
 
 def test_think_is_never_sent_to_medgemma():
-    s = _settings(diagnostic_think=True, coordinator_think=True)
-    assert s.think_for("recommendation") is None and s.think_for("baseline") is None
+    s = _settings(coordinator_think=True, recommendation_think=True)
+    assert s.think_for("coordinator") is True and s.think_for("recommendation") is True
+    assert s.think_for("diagnostic") is None and s.think_for("baseline") is None
+
+
+def test_think_follows_the_model_not_the_agent_name():
+    # Swapping an agent onto a non-Qwen model must stop the think option being sent.
+    s = _settings(recommendation_model="medgemma:4b", recommendation_think=True)
+    assert s.think_for("recommendation") is None
     with pytest.raises(ValueError):
         s.think_for("janitor")
 

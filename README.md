@@ -36,9 +36,9 @@ when to call tools, read the results, and decide what to do next.
 flowchart LR
     UI[Frontend<br/>submit study, live trace, report] -->|POST /sessions| BE[FastAPI backend]
     BE --> C[Coordinator Agent<br/>Qwen]
-    C -->|run_diagnostic| D[Diagnostic Agent<br/>Qwen]
+    C -->|run_diagnostic| D[Diagnostic Agent<br/>MedGemma 4B]
     D -->|POST /predict| M[Model Service<br/>KneeNet CNN]
-    C -->|run_recommendation| R[Recommendation Agent<br/>MedGemma 4B]
+    C -->|run_recommendation| R[Recommendation Agent<br/>Qwen]
     R --> DB[(Local document store<br/>~70 trusted docs)]
     R -.->|only if local store has nothing| W[Web search<br/>trusted-domain allowlist]
     C -->|request_reupload / finalize_report| BE
@@ -47,13 +47,15 @@ flowchart LR
 
 | Agent | LLM | Job | Main tools |
 |---|---|---|---|
-| **Diagnostic Agent** ("junior doctor") | Qwen | Check image quality, call the model, compare planes, decide finalize / retry / escalate, write an initial impression | Model Service `/predict`, QC checks |
-| **Recommendation Agent** ("senior doctor") | MedGemma 4B | Ground the findings in trusted sources, write recommendations with citations and an urgency level, raise concerns about the Diagnostic findings | Local document store first, then web search with allowlist |
+| **Diagnostic Agent** ("junior doctor") | MedGemma 4B | Check image quality, call the model, compare planes, decide finalize / retry / escalate, write an initial impression | Model Service `/predict`, QC checks |
+| **Recommendation Agent** ("senior doctor") | Qwen | Ground the findings in trusted sources, write recommendations with citations and an urgency level, raise concerns about the Diagnostic findings | Local document store first, then web search with allowlist |
 | **Coordinator Agent** | Qwen | Own the session state, delegate to the other two agents, resolve disagreements (Recommendation Agent's view weighs more), handle failures, assemble the `FinalReport` | `run_diagnostic`, `run_recommendation`, `request_reupload`, `finalize_report` |
 | **Baseline** (for evaluation) | MedGemma 4B | One LLM call with the same input, no tools, no loop, same `FinalReport` shape | none |
 
-The Coordinator runs Qwen rather than MedGemma so that it is independent of the Recommendation Agent
-whose output it adjudicates.
+The Coordinator runs Qwen because it needs reliable native tool calling: in the 20-scenario validation
+Qwen (tools) beat MedGemma (JSON actions) on correct decisions (85.0% vs 76.7%) and needed fewer guardrail
+overrides (2.7% vs 8.6%). It shares a model family with the Recommendation Agent, so the junior/senior rule
+is enforced by deterministic guardrails rather than left to the Coordinator's judgement.
 
 ---
 
@@ -241,7 +243,7 @@ Rules every contract follows:
 
 Create one `LLMClient` per process and share it. Pass `session_id` so calls show up in the session's trace.
 
-**Qwen agents (Coordinator, Diagnostic): native tool calls.** Describe each tool's arguments as a Pydantic
+**Qwen agents (Coordinator, Recommendation): native tool calls.** Describe each tool's arguments as a Pydantic
 model; the client turns it into a flat schema small models follow well.
 
 ```python
@@ -260,11 +262,11 @@ for call in result.tool_calls:
     history.append(tool_message(call, run_diagnostic(args)))   # Pydantic models, dicts or text
 ```
 
-**MedGemma (Recommendation, baseline): JSON-schema output.** MedGemma has no tool calling; use `decide`,
+**MedGemma (Diagnostic, baseline): JSON-schema output.** MedGemma has no tool calling; use `decide`,
 which constrains the output to the schema, validates it and retries once with the error.
 
 ```python
-decision, calls = client.decide("recommendation", messages, NextAction, session_id=sid)
+decision, calls = client.decide("diagnostic", messages, NextAction, session_id=sid)
 ```
 
 It raises `LLMOutputError` (with `.last_output`) if the JSON never validates and `LLMError` if Ollama
@@ -274,7 +276,7 @@ fails (model not pulled, server down, timeout); the message says which. Handle b
 `client.on_call` receives every result (use it to add an `AgentEvent`), each call is logged to
 `logs/app.jsonl`, and `client.usage_summary()` gives per-agent and total figures for the report.
 
-**Thinking.** Qwen3's thinking mode is off by default (`DIAGNOSTIC_THINK` / `COORDINATOR_THINK`). When on,
+**Thinking.** Qwen3's thinking mode is off by default (`COORDINATOR_THINK` / `RECOMMENDATION_THINK`). When on,
 the reasoning arrives in `result.thinking`, separate from `result.content`.
 
 ---
@@ -357,7 +359,7 @@ cp .env.example .env        # Windows: copy .env.example .env
 
 ### 7.3 Pull the models
 
-The exact tags live in `.env` (`DIAGNOSTIC_MODEL`, `COORDINATOR_MODEL`, `RECOMMENDATION_MODEL`).
+The exact tags live in `.env` (`DIAGNOSTIC_MODEL`, `COORDINATOR_MODEL`, `RECOMMENDATION_MODEL`, `BASELINE_MODEL`).
 Pull whatever those say, for example:
 
 ```bash
@@ -538,9 +540,10 @@ All settings are read by `shared/config.py` from environment variables or `.env`
 | Variable | Default | Purpose |
 |---|---|---|
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama server |
-| `DIAGNOSTIC_MODEL` / `COORDINATOR_MODEL` | `qwen3:8b` | Qwen tag for those agents |
-| `RECOMMENDATION_MODEL` | `medgemma:4b` | MedGemma tag (also used by the baseline) |
-| `DIAGNOSTIC_THINK` / `COORDINATOR_THINK` | `false` | Qwen3 thinking mode (never sent to MedGemma) |
+| `DIAGNOSTIC_MODEL` | `medgemma:4b` | MedGemma tag for the Diagnostic Agent |
+| `COORDINATOR_MODEL` / `RECOMMENDATION_MODEL` | `qwen3:8b` | Qwen tag for those agents (same tag = one model in memory) |
+| `BASELINE_MODEL` | `medgemma:4b` | Model for the single-call baseline |
+| `COORDINATOR_THINK` / `RECOMMENDATION_THINK` | `false` | Qwen3 thinking mode (never sent to MedGemma) |
 | `OLLAMA_KEEP_ALIVE` | `30m` | Keeps models loaded between calls |
 | `LLM_TIMEOUT_S` / `LLM_TEMPERATURE` / `LLM_JSON_RETRIES` | `180` / `0.1` / `1` | LLM call behaviour |
 | `LLM_SEED` | `30018` | Fixed sampling seed for repeatable runs; empty for random |

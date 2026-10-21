@@ -234,7 +234,7 @@ class LLMClient:
     # --- Model management ---
 
     def health(self) -> dict:
-        # Is Ollama up, is each configured model pulled, and can the Qwen models call tools?
+        # Is Ollama up, is each configured model pulled, and can the Coordinator's model call tools?
         try:
             response = self._http.get("/api/tags")
             response.raise_for_status()
@@ -243,23 +243,26 @@ class LLMClient:
             return {"ollama": "unreachable", "host": self.settings.ollama_host, "error": str(error)}
         available = {_normalise(m.get("name") or m.get("model") or ""): m for m in tags}
 
-        models = {}
-        for agent in ("diagnostic", "coordinator", "recommendation"):
+        models, seen_caps = {}, {}  # seen_caps: ask /api/show once per distinct model
+        for agent in ("diagnostic", "coordinator", "recommendation", "baseline"):
             name = self.settings.model_for(agent)
             entry = available.get(_normalise(name))
             info: dict = {"model": name, "available": entry is not None}
             if entry is not None:
                 info["digest"] = (entry.get("digest") or "")[:12]  # record this in the report
-                capabilities = self._capabilities(name)
+                if name not in seen_caps:
+                    seen_caps[name] = self._capabilities(name)
+                capabilities = seen_caps[name]
                 if capabilities is not None:
                     info["capabilities"] = capabilities
-                    if agent in ("diagnostic", "coordinator"):
+                    if agent == "coordinator" or self.settings.uses_tool_calls(agent):
                         info["tools_supported"] = "tools" in capabilities
             models[agent] = info
         ready = all(m["available"] and m.get("tools_supported", True) for m in models.values())
         return {"ollama": "ok", "host": self.settings.ollama_host, "ready": ready, "models": models}
 
-    def preload(self, agents: tuple[str, ...] = ("coordinator", "diagnostic", "recommendation")) -> dict[str, float]:
+    def preload(self, agents: tuple[str, ...] = ("coordinator", "diagnostic", "recommendation", "baseline")
+                ) -> dict[str, float]:
         # Loads each model into memory (an empty chat) so the first real call is not a cold start.
         # Returns load time per model in ms. Models shared by several agents are loaded once.
         loaded: dict[str, float] = {}
@@ -452,9 +455,9 @@ def _smoke_test() -> int:
     class _Echo(BaseModel):
         study_id: str
 
-    class _Advice(BaseModel):
-        urgency: str
-        summary: str
+    class _Finding(BaseModel):
+        finding: str
+        impression: str
 
     with LLMClient() as client:
         health = client.health()
@@ -469,10 +472,10 @@ def _smoke_test() -> int:
         calls = [(c.name, c.arguments) for c in result.tool_calls]
         print(f"\ncoordinator tool calls: {calls or 'none'} ({result.latency_ms:.0f} ms)")
 
-        advice, _ = client.decide("recommendation", [{"role": "user", "content":
-                                  "A knee MRI may indicate an ACL tear. Give urgency and a one-line summary."}],
-                                  _Advice)
-        print(f"recommendation JSON: {advice.model_dump()}")
+        finding, _ = client.decide("diagnostic", [{"role": "user", "content":
+                                   "Model scores: acl_tear 0.82, meniscal_tear 0.31. Name the main finding "
+                                   "and give a one-line impression."}], _Finding)
+        print(f"diagnostic JSON: {finding.model_dump()}")
         print("\nusage:", json.dumps(client.usage_summary()["total"], indent=2))
         return 0 if calls else 1
 

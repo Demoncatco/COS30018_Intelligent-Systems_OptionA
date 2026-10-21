@@ -27,13 +27,14 @@ class Settings(BaseSettings):
     # --- Local LLMs (Ollama) ---
     ollama_host: str = "http://localhost:11434"
     # Pinned tags (name:tag, never untagged or :latest) so every run and the report use the same weights.
-    # The Coordinator uses Qwen, not MedGemma, so it is independent of the agent whose opinion it weighs.
-    diagnostic_model: str = "qwen3:8b"
+    # MedGemma reads the imaging findings (Diagnostic); Qwen handles tool calling and synthesis.
+    diagnostic_model: str = "medgemma:4b"
     coordinator_model: str = "qwen3:8b"
-    recommendation_model: str = "medgemma:4b"  # also used by the baseline
-    # Qwen3 "thinking": slower and longer, sometimes better decisions. Only sent to the Qwen agents.
-    diagnostic_think: bool = False
+    recommendation_model: str = "qwen3:8b"  # same tag as the Coordinator, so Ollama keeps one Qwen in memory
+    baseline_model: str = "medgemma:4b"  # single-call baseline, independent of the agents' models
+    # Qwen3 "thinking": slower and longer, sometimes better decisions. Never sent to non-Qwen models.
     coordinator_think: bool = False
+    recommendation_think: bool = False
     ollama_keep_alive: str = "30m"
     llm_timeout_s: float = Field(default=180.0, gt=0)
     llm_temperature: float = Field(default=0.1, ge=0, le=2)
@@ -69,7 +70,7 @@ class Settings(BaseSettings):
 
     # --- Validation ---
 
-    @field_validator("diagnostic_model", "coordinator_model", "recommendation_model")
+    @field_validator("diagnostic_model", "coordinator_model", "recommendation_model", "baseline_model")
     @classmethod
     def _model_tag_is_pinned(cls, value: str) -> str:
         value = value.strip()
@@ -115,15 +116,21 @@ class Settings(BaseSettings):
 
     def model_for(self, agent: str) -> str:
         models = {"diagnostic": self.diagnostic_model, "coordinator": self.coordinator_model,
-                  "recommendation": self.recommendation_model, "baseline": self.recommendation_model}
+                  "recommendation": self.recommendation_model, "baseline": self.baseline_model}
         if agent not in models:
             raise ValueError(f"no model configured for agent {agent!r}")
         return models[agent]
 
     def think_for(self, agent: str) -> bool | None:
-        # None means "do not send the think option": MedGemma has no thinking mode and Ollama rejects it.
-        self.model_for(agent)  # same unknown-agent error as model_for
-        return {"diagnostic": self.diagnostic_think, "coordinator": self.coordinator_think}.get(agent)
+        # None means "do not send the think option": only Qwen has a thinking mode; Ollama rejects it elsewhere.
+        model = self.model_for(agent)  # same unknown-agent error as model_for
+        if not uses_qwen(model):
+            return None
+        return {"coordinator": self.coordinator_think, "recommendation": self.recommendation_think}.get(agent, False)
+
+    def uses_tool_calls(self, agent: str) -> bool:
+        # Qwen gets native tool calls; other models (MedGemma) use JSON-schema output via LLMClient.decide.
+        return uses_qwen(self.model_for(agent))
 
     @property
     def has_tavily_key(self) -> bool:
@@ -134,6 +141,11 @@ class Settings(BaseSettings):
         summary = self.model_dump(mode="json", exclude={"tavily_api_key"})
         summary["tavily_api_key"] = "set" if self.has_tavily_key else "not set"
         return summary
+
+
+def uses_qwen(model: str) -> bool:
+    # Matches "qwen3:8b" and Hugging Face paths like "hf.co/Qwen/Qwen3-8B-GGUF:Q4_K_M".
+    return "qwen" in model.lower()
 
 
 @lru_cache
