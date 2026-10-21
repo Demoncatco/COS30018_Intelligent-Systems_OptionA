@@ -1,8 +1,8 @@
-# Stub CoordinatorRequest fixtures, standing in for the real Coordinator Agent until it's ready. 
+# Example Coordinator requests for testing
 
 from shared.schema import CoordinatorRequest, FINDINGS
 
-# Scenario A: strong finding, good local doc coverage expected (ACL has 6+ sources)
+# Strong finding with good local source coverage
 STRONG_FINDING = CoordinatorRequest(
     finding={**{k: 0.05 for k in FINDINGS}, "ACL": 0.92},
     confidence=0.89,
@@ -10,7 +10,7 @@ STRONG_FINDING = CoordinatorRequest(
     task_type="initial",
 )
 
-# Scenario B: thin local coverage expected (Synovitis has only 1 weak source)
+# Finding with limited local source coverage
 WEAK_COVERAGE_FINDING = CoordinatorRequest(
     finding={**{k: 0.05 for k in FINDINGS}, "Synovitis": 0.71},
     confidence=0.65,
@@ -18,7 +18,7 @@ WEAK_COVERAGE_FINDING = CoordinatorRequest(
     task_type="initial",
 )
 
-# Scenario C: everything near 0.5 - genuinely ambiguous, low overall confidence
+# Uncertain findings with low overall confidence
 AMBIGUOUS_FINDING = CoordinatorRequest(
     finding={k: 0.5 for k in FINDINGS},
     confidence=0.40,
@@ -26,7 +26,7 @@ AMBIGUOUS_FINDING = CoordinatorRequest(
     task_type="initial",
 )
 
-# Scenario D: a Coordinator recheck request (Design B retry loop)
+# Request for more evidence
 RECHECK_REQUEST = CoordinatorRequest(
     finding={**{k: 0.05 for k in FINDINGS}, "Baker's": 0.60},
     confidence=0.55,

@@ -12,6 +12,8 @@ tqdm # Used to track progress of a loop.
 requests # Makes web requests for python.
 sentence-transformers # Used to convert text into a vector representation that can be used for similarity search.
 python-dotenv # Loads .env for scripts that do not go through shared/config.py (which reads .env itself via pydantic-settings).
+trafilatura # Used to scrape text from web pages.
+pypdf # Used to extract text from PDF files.
 
 # Model Packages:
 torch>=2.1 # Trains and runs the knee model. Only needed for training and MODEL_MODE=live; stub and replay run without it.
