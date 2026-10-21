@@ -161,6 +161,8 @@ Add new flags here before using them. Format: `lower_snake_case`, with `:<detail
 | **session status** (`SessionStatus`) | `pending`, `running`, `completed`, `partial`, `inconclusive`, `failed` | See below. |
 | **event kind** (`AgentEvent.kind`) | `decision`, `tool_call`, `tool_result`, `message`, `error`, `status` | One line of the live trace in the UI. |
 | **model mode** (`MODEL_MODE`) | `stub`, `replay`, `live` | How the Model Service produces scores (see section 8). |
+| **coordinator driver** | `tools`, `json`, `fixed` | How the Coordinator decides: Qwen tool calls, JSON actions (models without tool calling), or no LLM (fixed-workflow baseline). |
+| **guardrail** | hard / soft | Code rule that checks every Coordinator tool call. Hard refusals never run; soft refusals run if the LLM asks twice. |
 
 Session status meanings:
 
@@ -195,6 +197,14 @@ of truth: if you need a new field, change it there (in its own PR) and update th
 | UI → Backend | `PatientMetadata` (age, sex, symptoms, injury mechanism) | — |
 | Coordinator (internal) | — | `SessionState`: the one shared state per run (diagnostic and recommendation results per round, recheck count, errors, trace events, final report). Add events with `add_event` / `add_error` / `set_status`, never by appending to `events` directly |
 | Kaggle export → Model Service | `ReplayPredictionsFile` (`predictions.json`) | — |
+
+The Coordinator calls the other agents through two plain functions (`agents/coordinator/runners.py`).
+Each agent must provide one, and raise any exception on failure:
+
+```python
+def diagnostic(request: DiagnosticAgentRequest, *, session_id: str) -> DiagnosticAgentResponse: ...
+def recommendation(request: CoordinatorRequest, *, session_id: str) -> RecommendationResponse: ...
+```
 
 Rules every contract follows:
 
@@ -276,12 +286,14 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 ```
 .
 ├── agents/
-│   ├── coordinator/             ⬜ Coordinator Agent (Ren)
+│   ├── coordinator/             ✅ Coordinator Agent (Ren), see agents/coordinator/README.md
 │   ├── diagnostic_agent/        ⬜ Diagnostic Agent (Justin)
 │   └── recommendation_agent/    🟡 graph state + schema tests (Christina)
 ├── backend/                     ⬜ FastAPI backend: sessions, event stream, baseline (Ren) — planned location
 ├── evaluation/
 │   ├── run_eval.py              ⬜ evaluation runner (30+ cases, multi-agent vs baseline)
+│   ├── coordinator_scenarios.py ✅ 20 Coordinator validation scenarios
+│   ├── coordinator_validation.py ✅ Coordinator validation runner and metrics
 │   └── test_cases/              ⬜ evaluation test set
 ├── frontend/src/                ⬜ React frontend
 ├── index.html, script.js, style.css   🟡 static UI prototype
@@ -418,7 +430,27 @@ model inference time for the report comes from live mode or the Kaggle run.
 `LIVE_DATASET_ROOT/LIVE_SPLIT_FOLDER/<study>/<series>/*.dcm` and `train_series.csv` at `LIVE_SERIES_CSV`.
 Live mode reads the input size from the checkpoint, so it always matches training.
 
-### 8.2 Backend and agents ⬜
+### 8.2 Coordinator Agent
+
+Smoke run against the running Model Service (uses interim stand-ins until the Diagnostic and
+Recommendation Agents are merged, so the report is `partial`):
+
+```bash
+python -m agents.coordinator --study-id <study_id>                 # Qwen
+python -m agents.coordinator --study-id <study_id> --driver fixed  # no LLM
+```
+
+Validation on the 20 scripted scenarios (results in `evaluation/results/coordinator/`):
+
+```bash
+python -m evaluation.coordinator_validation --driver fixed         # no Ollama needed
+python -m evaluation.coordinator_validation                        # Qwen
+python -m evaluation.coordinator_validation --compare --repeats 3  # Qwen vs MedGemma vs fixed
+```
+
+It reports valid-call rate, correct-decision rate, override rate and latency.
+
+### 8.3 Backend ⬜
 
 Planned: `uvicorn backend.main:app --port 8000` with these endpoints:
 
@@ -430,7 +462,7 @@ Planned: `uvicorn backend.main:app --port 8000` with these endpoints:
 | `POST /baseline` | Same input through the single-call baseline |
 | `GET /health` | Model Service, Ollama and model availability |
 
-### 8.3 Frontend
+### 8.4 Frontend
 
 Currently a static prototype: open `index.html` in a browser. The React app in `frontend/` will replace it.
 
@@ -542,9 +574,9 @@ Tests must not need the Kaggle dataset, a GPU or a running Ollama server. Use th
 `model_service/tests/_fakes.py`, `httpx.MockTransport` for LLM calls (see `shared/tests/test_llm.py`),
 and stub mode for the Model Service.
 
-Every new module comes with tests. Planned coverage for the engineering requirements: Coordinator
-branches (finalize, recheck, re-upload, failure), guardrails (step limit, recheck limit), API
-endpoints, and the disclaimer always being present.
+Every new module comes with tests. Covered so far: Coordinator branches (finalize, recheck, re-upload,
+failure), guardrails (step limit, recheck limit, junior/senior rule) and the disclaimer always being
+present (`agents/coordinator/tests/`). Still planned: API endpoints.
 
 ---
 
@@ -573,3 +605,5 @@ Known gaps to close; tick them off as PRs merge.
 - [x] Define the format of the Kaggle-exported `predictions.json` for replay mode (section 8.1).
 - [ ] Confirm the weak-label CSV format with the weak labeller (`study_id` + the 12 `FINDINGS` columns; 1/0/-1/blank,
       see section 3.5). `labels.py` now enforces it.
+- [ ] Add per-plane scores to `DiagnosticAgentResponse` so `ReportedFinding.per_plane` can be filled in the
+      final report (currently empty).
