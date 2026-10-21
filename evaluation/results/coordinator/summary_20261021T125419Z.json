@@ -1,0 +1,96 @@
+[
+  {
+    "config": "tools:qwen3:8b",
+    "driver": "tools",
+    "model": "qwen3:8b",
+    "runs": 60,
+    "correct_decision_rate": 0.85,
+    "correct_by_difficulty": {
+      "simple": 1.0,
+      "moderate": 0.667,
+      "difficult": 1.0,
+      "edge": 0.75
+    },
+    "valid_call_rate": 1.0,
+    "override_rate": 0.027,
+    "latency_ms": {
+      "mean": 43247.3,
+      "median": 33953.2,
+      "p90": 86311.5
+    },
+    "mean_tokens": 4887.4,
+    "mean_llm_calls": 3.7,
+    "failed": [
+      "S08: status partial not in ['completed'] | disagreements present=True, expected False",
+      "S10: user_action 'Please re-upload the study including an axial series.' does not mention 'slices'",
+      "S19: status inconclusive not in ['completed']",
+      "S08: status partial not in ['completed'] | disagreements present=True, expected False",
+      "S10: user_action 'Please re-upload the study including an axial series.' does not mention 'slices'",
+      "S19: status inconclusive not in ['completed']",
+      "S08: status partial not in ['completed'] | disagreements present=True, expected False",
+      "S10: user_action 'Please re-upload the study including an axial series.' does not mention 'slices'",
+      "S19: status inconclusive not in ['completed']"
+    ]
+  },
+  {
+    "config": "json:medgemma:4b",
+    "driver": "json",
+    "model": "medgemma:4b",
+    "runs": 60,
+    "correct_decision_rate": 0.767,
+    "correct_by_difficulty": {
+      "simple": 1.0,
+      "moderate": 0.389,
+      "difficult": 1.0,
+      "edge": 0.75
+    },
+    "valid_call_rate": 1.0,
+    "override_rate": 0.086,
+    "latency_ms": {
+      "mean": 23913.2,
+      "median": 15491.8,
+      "p90": 45639.3
+    },
+    "mean_tokens": 6209.6,
+    "mean_llm_calls": 3.83,
+    "failed": [
+      "S06: disagreements present=True, expected False",
+      "S09: status inconclusive not in ['completed'] | request_reupload executed but must not be",
+      "S10: user_action 'Please re-upload the study including an axial series.' does not mention 'slices'",
+      "S19: status inconclusive not in ['completed']",
+      "S06: disagreements present=True, expected False",
+      "S08: disagreements present=True, expected False",
+      "S09: status inconclusive not in ['completed'] | request_reupload executed but must not be",
+      "S10: user_action 'Please re-upload the study including an axial series.' does not mention 'slices'",
+      "S19: status inconclusive not in ['completed']",
+      "S06: disagreements present=True, expected False",
+      "S08: disagreements present=True, expected False",
+      "S09: status inconclusive not in ['completed'] | request_reupload executed but must not be",
+      "S10: user_action 'Please re-upload the study including an axial series.' does not mention 'slices'",
+      "S19: status inconclusive not in ['completed']"
+    ]
+  },
+  {
+    "config": "fixed",
+    "driver": "fixed",
+    "model": "-",
+    "runs": 60,
+    "correct_decision_rate": 1.0,
+    "correct_by_difficulty": {
+      "simple": 1.0,
+      "moderate": 1.0,
+      "difficult": 1.0,
+      "edge": 1.0
+    },
+    "valid_call_rate": null,
+    "override_rate": null,
+    "latency_ms": {
+      "mean": 65.4,
+      "median": 13.9,
+      "p90": 29.0
+    },
+    "mean_tokens": 0.0,
+    "mean_llm_calls": 0.0,
+    "failed": []
+  }
+]
