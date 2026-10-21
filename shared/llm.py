@@ -1,7 +1,7 @@
 """Shared Ollama client for every agent and the baseline.
 
-- Qwen agents (Coordinator, Diagnostic) use native tool calls:  chat(..., tools=[tool_schema(...)])
-- MedGemma (Recommendation, baseline) uses JSON-schema output:   decide(..., schema=SomeModel)
+- Qwen agents (Coordinator, Reccomendation) use native tool calls:  chat(..., tools=[tool_schema(...)])
+- MedGemma (Diagnostic, baseline) uses JSON-schema output:   decide(..., schema=SomeModel)
 - Every call is counted per agent (tokens, latency, retries) and logged, for the report and the UI trace.
 
 A Qwen tool loop looks like this:
