@@ -16,12 +16,13 @@ class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         entry = {"time": round(record.created, 3), "level": record.levelname, "logger": record.name,
                  "message": record.getMessage()}
-        for key in ("session_id", "agent"):
-            if hasattr(record, key):
-                entry[key] = getattr(record, key)
+        for key in ("session_id", "agent", "data"):
+            value = getattr(record, key, None)
+            if value is not None:
+                entry[key] = value
         if record.exc_info:
             entry["exception"] = self.formatException(record.exc_info)
-        return json.dumps(entry)
+        return json.dumps(entry, default=str)
 
 
 def setup_logging(log_dir: str | None = None, level: str | None = None) -> None:
