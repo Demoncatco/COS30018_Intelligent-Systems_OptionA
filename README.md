@@ -216,16 +216,56 @@ Rules every contract follows:
   ```python
   from shared.schema import FINDINGS, PLANES, FinalReport      # names and contracts
   from shared.config import get_settings                       # all settings
-  from shared.llm import LLMClient, tool_schema                # all LLM calls
+  from shared.llm import LLMClient, tool_schema, tool_message  # all LLM calls
   from shared.logging_setup import setup_logging, TraceWriter  # logs and traces
   ```
 - **No hard-coded models, URLs, thresholds or keys.** Read them from `get_settings()`.
 - **All LLM calls go through `LLMClient`** with the agent's name (`client.chat("coordinator", ...)`),
-  so tokens and latency are counted per agent for the report.
+  so tokens and latency are counted per agent for the report. See section 5.1.
 - Run modules from the repo root with `python -m package.module`, so `shared` imports resolve.
 - Never flip images left–right in augmentation: it swaps medial and lateral findings.
 - Recommendation text says **"may indicate"**, never states a diagnosis.
 - Lint with `ruff check .` before pushing.
+
+### 5.1 Using the LLM client
+
+Create one `LLMClient` per process and share it. Pass `session_id` so calls show up in the session's trace.
+
+**Qwen agents (Coordinator, Diagnostic): native tool calls.** Describe each tool's arguments as a Pydantic
+model; the client turns it into a flat schema small models follow well.
+
+```python
+from shared.llm import LLMClient, ToolArgumentsError, tool_message, tool_schema
+
+TOOLS = [tool_schema("run_diagnostic", "Score one MRI study and get the Diagnostic Agent's findings.", RunDiagnosticArgs)]
+
+result = client.chat("coordinator", history, tools=TOOLS, session_id=sid)
+history.append(result.assistant_message())          # the model must see its own tool calls
+for call in result.tool_calls:
+    try:
+        args = call.parse(RunDiagnosticArgs)         # validates the arguments
+    except ToolArgumentsError as error:
+        history.append(tool_message(call, str(error)))   # tells the model what to fix
+        continue
+    history.append(tool_message(call, run_diagnostic(args)))   # Pydantic models, dicts or text
+```
+
+**MedGemma (Recommendation, baseline): JSON-schema output.** MedGemma has no tool calling; use `decide`,
+which constrains the output to the schema, validates it and retries once with the error.
+
+```python
+decision, calls = client.decide("recommendation", messages, NextAction, session_id=sid)
+```
+
+It raises `LLMOutputError` (with `.last_output`) if the JSON never validates and `LLMError` if Ollama
+fails (model not pulled, server down, timeout); the message says which. Handle both as a failed agent step.
+
+**Counting.** Every `LLMResult` has `tokens_in`, `tokens_out`, `latency_ms` and `load_ms` (cold-start time).
+`client.on_call` receives every result (use it to add an `AgentEvent`), each call is logged to
+`logs/app.jsonl`, and `client.usage_summary()` gives per-agent and total figures for the report.
+
+**Thinking.** Qwen3's thinking mode is off by default (`DIAGNOSTIC_THINK` / `COORDINATOR_THINK`). When on,
+the reasoning arrives in `result.thinking`, separate from `result.content`.
 
 ---
 
@@ -267,8 +307,8 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   └── tests/                   ✅ model-service tests
 ├── shared/
 │   ├── schema.py                ✅ all contracts and shared vocabulary
-│   ├── config.py                ✅ typed settings from .env
-│   ├── llm.py                   ✅ Ollama client (tool calls, validated JSON, usage tracking)
+│   ├── config.py                ✅ typed, validated settings from .env (pinned tags, secrets redacted)
+│   ├── llm.py                   ✅ Ollama client (Qwen tool calls, MedGemma JSON, usage logging, health check)
 │   ├── logging_setup.py         ✅ JSON logs + per-session trace files
 │   └── tests/                   ✅
 ├── .env.example                 ✅ copy to .env
@@ -311,8 +351,12 @@ Pull whatever those say, for example:
 ```bash
 ollama pull qwen3:8b
 ollama pull medgemma:4b     # use the team-agreed MedGemma 4B tag; update .env if it differs
-ollama list                 # record the tags and digests for the report
+python -m shared.llm        # checks every model is pulled, Qwen can call tools, MedGemma returns JSON
 ```
+
+`python -m shared.llm` prints each model's digest (record these in the report), the cold-start load time,
+one Qwen tool call and one MedGemma JSON answer, and exits non-zero if anything is missing.
+Model names must include a tag (`qwen3:8b`, not `qwen3` or `qwen3:latest`); settings refuse to load otherwise.
 
 ---
 
@@ -464,8 +508,12 @@ All settings are read by `shared/config.py` from environment variables or `.env`
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama server |
 | `DIAGNOSTIC_MODEL` / `COORDINATOR_MODEL` | `qwen3:8b` | Qwen tag for those agents |
 | `RECOMMENDATION_MODEL` | `medgemma:4b` | MedGemma tag (also used by the baseline) |
+| `DIAGNOSTIC_THINK` / `COORDINATOR_THINK` | `false` | Qwen3 thinking mode (never sent to MedGemma) |
 | `OLLAMA_KEEP_ALIVE` | `30m` | Keeps models loaded between calls |
 | `LLM_TIMEOUT_S` / `LLM_TEMPERATURE` / `LLM_JSON_RETRIES` | `180` / `0.1` / `1` | LLM call behaviour |
+| `LLM_SEED` | `30018` | Fixed sampling seed for repeatable runs; empty for random |
+| `LLM_NUM_CTX` | `8192` | Context window; Ollama's default silently truncates long prompts |
+| `LLM_HTTP_RETRIES` | `1` | Retries when Ollama is unreachable or briefly unavailable (timeouts are not retried) |
 | `MODEL_SERVICE_URL` | `http://localhost:8001` | Where agents call `/predict` |
 | `MODEL_MODE` | `stub` | `stub`, `replay` or `live` |
 | `MODEL_CHECKPOINT` / `REPLAY_PREDICTIONS` | `model_service/checkpoints/...` | Model files |
@@ -475,7 +523,7 @@ All settings are read by `shared/config.py` from environment variables or `.env`
 | `MAX_RECHECK_ROUNDS` | `2` | Coordinator recheck limit |
 | `MAX_COORDINATOR_STEPS` | `12` | Hard stop for the Coordinator loop |
 | `REPORT_THRESHOLD` / `LOW_CONFIDENCE_THRESHOLD` | `0.5` / `0.6` | See section 3.3 |
-| `TAVILY_API_KEY` | — | Web search for the Recommendation Agent (secret) |
+| `TAVILY_API_KEY` | — | Web search for the Recommendation Agent (secret). The `.env.example` placeholder counts as unset; check with `get_settings().has_tavily_key` |
 | `LOG_LEVEL` / `LOG_DIR` | `INFO` / `logs` | Logging |
 
 ---
@@ -502,7 +550,8 @@ endpoints, and the disclaimer always being present.
 
 ## 12. Logging and traces
 
-- Call `setup_logging()` once at startup. Logs go to stdout and `logs/app.jsonl` as JSON lines.
+- Call `setup_logging()` once at startup, then log `get_settings().safe_summary()` (all settings, secrets redacted)
+  so each run records which models and thresholds it used. Logs go to stdout and `logs/app.jsonl` as JSON lines.
 - Each session writes its `AgentEvent`s to `logs/traces/<session_id>.jsonl` via `TraceWriter`. These
   files are the execution traces submitted with the project and what the UI replays.
 - Include `tokens_in`, `tokens_out` and `latency_ms` on events that involve an LLM or tool call; the
