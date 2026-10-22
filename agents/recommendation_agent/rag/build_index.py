@@ -1,4 +1,4 @@
-# Build a local search index from the fetched document chunks.
+# Build a local search index from the fetched document chunks
 
 import json
 import time

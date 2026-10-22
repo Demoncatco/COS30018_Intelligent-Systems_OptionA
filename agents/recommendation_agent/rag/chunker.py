@@ -1,4 +1,4 @@
-# Split fetched documents into overlapping chunks.
+# Split fetched documents into overlapping chunks
 
 import re
 from pathlib import Path

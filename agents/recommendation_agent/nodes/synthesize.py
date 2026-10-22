@@ -1,7 +1,7 @@
-# Write a recommendation from the retrieved sources and check its disclaimer
+# Write a recommendation from retrieved sources and check its disclaimer
 
 import re
-from typing import Callable, cast
+from typing import Callable
 
 from ..llm_client import call_qwen
 from ..state import RecommendationState, RetrievedChunk
@@ -12,9 +12,9 @@ SYSTEM_PROMPT = (
     "recommendation for someone with this finding. Cite each source you "
     "use by its title in parentheses, e.g. (MCL Sprain: Symptoms, "
     "Treatment, Exercises & Rehab). Do not invent information that isn't "
-    "in the excerpts. End with a sentence noting this may indicate a "
-    "condition requiring professional assessment, and to consult a "
-    "clinician."
+    "in the excerpts. Finish by copying this sentence exactly, word for "
+    'word: "This may indicate a condition requiring professional '
+    'assessment, so please consult a clinician."'
 )
 
 
@@ -41,7 +41,7 @@ def _has_pattern(text: str, patterns: list[str]) -> bool:
 
 
 def has_required_disclaimer(text: str) -> bool:
-    """Check for both tentative wording and advice to consult a clinician."""
+    """Check for tentative wording and advice to consult a clinician."""
     return _has_pattern(text, MAY_INDICATE_PATTERNS) and _has_pattern(text, CONSULT_PATTERNS)
 
 
@@ -50,6 +50,32 @@ def enforce_disclaimer(text: str) -> tuple[str, bool]:
     if has_required_disclaimer(text):
         return text, False
     return text.rstrip() + REQUIRED_DISCLAIMER, True
+
+
+NO_SOURCES_TEXT = (
+    "No trusted sources could be retrieved for this finding, so no specific "
+    "guidance can be given here."
+)
+
+
+def _url_key(url: str) -> str:
+    """Normalize URL spelling so the same page is only listed once."""
+    key = url.strip().lower().split("#")[0]
+    key = re.sub(r"^https?://(www\.)?", "", key)
+    return key.rstrip("/")
+
+
+def format_sources(chunks: list[RetrievedChunk]) -> str:
+    """List each source once, keeping its original title and URL."""
+    seen: set[str] = set()
+    lines = []
+    for chunk in chunks:
+        url = chunk["source_url"]
+        key = _url_key(url)
+        if key not in seen:
+            seen.add(key)
+            lines.append(f"- {chunk['source_title']} - {url}")
+    return "Sources:\n" + "\n".join(lines)
 
 
 def _build_prompt(finding: str, chunks: list[RetrievedChunk]) -> str:
@@ -64,13 +90,18 @@ def synthesize(
     state: RecommendationState,
     llm: Callable[[str, str | None], str] = call_qwen,
 ) -> RecommendationState:
-    """Generate a recommendation from local and web sources, then check the disclaimer."""
+    """Write a recommendation from the available sources and add its disclaimer and source list."""
     chunks = (state.get("retrieved_chunks") or []) + (state.get("web_results") or [])
-    prompt = _build_prompt(state["finding"], chunks)  # pyright: ignore[reportTypedDictNotRequiredAccess]
-    raw_recommendation = llm(prompt, SYSTEM_PROMPT)
+    if chunks:
+        raw_recommendation = llm(_build_prompt(state["finding"], chunks), SYSTEM_PROMPT)
+    else:
+        # Avoid generating advice without source excerpts.
+        raw_recommendation = NO_SOURCES_TEXT
     recommendation, disclaimer_added = enforce_disclaimer(raw_recommendation)
+    if chunks:
+        recommendation = f"{recommendation}\n\n{format_sources(chunks)}"
 
-    new_state = cast(RecommendationState, dict(state))
+    new_state = state.copy()
     new_state["recommendation"] = recommendation
     new_state["disclaimer_added"] = disclaimer_added
     return new_state

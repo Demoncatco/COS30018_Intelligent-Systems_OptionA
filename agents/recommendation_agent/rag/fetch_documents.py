@@ -1,4 +1,4 @@
-# Fetch the pages in manifest.json and save their text locally.
+# Fetch the pages in manifest.json and save their text locally
 
 import json
 import re

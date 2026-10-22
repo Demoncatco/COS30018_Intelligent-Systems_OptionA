@@ -1,31 +1,9 @@
 [
   {
-    "title": "Common Knee Injuries",
-    "url": "https://orthoinfo.aaos.org/en/diseases--conditions/common-knee-injuries/",
-    "findings": [
-      "ACL",
-      "MCL"
-    ]
-  },
-  {
     "title": "Anterior Cruciate Ligament (ACL) Injury",
     "url": "https://www.nth.nhs.uk/resources/acl-injury/",
     "findings": [
       "ACL"
-    ]
-  },
-  {
-    "title": "Disparity in ACL injury management across six NHS trusts",
-    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11998184/",
-    "findings": [
-      "ACL"
-    ]
-  },
-  {
-    "title": "Knee Pain (incl. MCL sprain/strain)",
-    "url": "https://www.hacw.nhs.uk/knee-pain/",
-    "findings": [
-      "MCL"
     ]
   },
   {
@@ -53,7 +31,7 @@
   },
   {
     "title": "Meniscus Tears",
-    "url": "https://orthoinfo.aaos.org/en/diseases--conditions/meniscus-tears/",
+    "url": "https://www.orthoinfo.org/diseases--conditions/meniscus-tears/",
     "findings": [
       "Medial Meniscus",
       "Lateral Meniscus"
@@ -61,7 +39,7 @@
   },
   {
     "title": "Meniscus Repair",
-    "url": "https://orthoinfo.aaos.org/en/treatment/meniscus-repair/",
+    "url": "https://www.orthoinfo.org/treatment/meniscus-repair/",
     "findings": [
       "Medial Meniscus",
       "Lateral Meniscus"
@@ -76,25 +54,8 @@
     ]
   },
   {
-    "title": "Association of Meniscus Injuries in Patients With ACL Injuries",
-    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9275808/",
-    "findings": [
-      "Medial Meniscus",
-      "Lateral Meniscus",
-      "ACL"
-    ]
-  },
-  {
-    "title": "Knee Arthritis - Overview",
-    "url": "https://sportsmedicine.mayoclinic.org/condition/kneearthritis/",
-    "findings": [
-      "Medial OA",
-      "Lateral OA"
-    ]
-  },
-  {
     "title": "Arthritis of the Knee",
-    "url": "https://orthoinfo.aaos.org/en/diseases--conditions/arthritis-of-the-knee/",
+    "url": "https://www.orthoinfo.org/diseases--conditions/arthritis-of-the-knee/",
     "findings": [
       "Medial OA",
       "Lateral OA"
@@ -117,7 +78,7 @@
   },
   {
     "title": "Patellofemoral Arthritis",
-    "url": "https://orthoinfo.aaos.org/en/diseases--conditions/patellofemoral-arthritis/",
+    "url": "https://www.orthoinfo.org/diseases--conditions/patellofemoral-arthritis/",
     "findings": [
       "PF OA"
     ]
@@ -138,31 +99,9 @@
   },
   {
     "title": "Baker's Cyst (Popliteal Cyst)",
-    "url": "https://orthoinfo.aaos.org/en/diseases--conditions/bakers-cyst-popliteal-cyst/",
+    "url": "https://www.orthoinfo.org/diseases--conditions/bakers-cyst-popliteal-cyst/",
     "findings": [
       "Baker's"
-    ]
-  },
-  {
-    "title": "Baker Cyst - MedlinePlus Medical Encyclopedia",
-    "url": "https://medlineplus.gov/ency/article/001222.htm",
-    "findings": [
-      "Baker's"
-    ]
-  },
-  {
-    "title": "Traumatic Bone Bruises in the Athlete's Knee",
-    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3445054/",
-    "findings": [
-      "Contusion"
-    ]
-  },
-  {
-    "title": "Severe bicompartmental bone bruise and rotatory instability in ACL injury",
-    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9033705/",
-    "findings": [
-      "Contusion",
-      "ACL"
     ]
   },
   {
@@ -174,7 +113,7 @@
   },
   {
     "title": "Patellar (Kneecap) Fractures",
-    "url": "https://orthoinfo.aaos.org/en/diseases--conditions/patellar-kneecap-fractures/",
+    "url": "https://www.orthoinfo.org/diseases--conditions/patellar-kneecap-fractures/",
     "findings": [
       "Fracture"
     ]
@@ -187,25 +126,10 @@
     ]
   },
   {
-    "title": "Anterior Cruciate Ligament (ACL) Injury - MedlinePlus",
-    "url": "https://medlineplus.gov/ency/article/001074.htm",
-    "findings": [
-      "ACL"
-    ]
-  },
-  {
     "title": "ACL Tear & Injury: Symptoms & Recovery",
     "url": "https://my.clevelandclinic.org/health/diseases/16576-acl-tear",
     "findings": [
       "ACL"
-    ]
-  },
-  {
-    "title": "Ligament Injuries - Whittington Health NHS",
-    "url": "https://www.whittington.nhs.uk/default.asp?c=47694",
-    "findings": [
-      "ACL",
-      "MCL"
     ]
   },
   {
@@ -216,24 +140,12 @@
     ]
   },
   {
-    "title": "Hemarthrosis (Joint Bleeding): Causes, Symptoms and Treatment",
-    "url": "https://my.clevelandclinic.org/health/diseases/24225-hemarthrosis-joint-bleeding",
-    "findings": [
-      "Effusion"
-    ]
-  },
-  {
-    "title": "Synovitis in Knee Osteoarthritis: A Precursor of Disease?",
-    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4916836/",
-    "findings": [
-      "Synovitis"
-    ]
-  },
-  {
     "title": "Baker's (Popliteal) Cyst: Causes, Symptoms, and Diagnosis - Healthline",
     "url": "https://www.healthline.com/health/bakers-cyst",
     "findings": [
-      "Baker's"
+      "Baker's",
+      "Effusion",
+      "Synovitis"
     ]
   },
   {
@@ -248,13 +160,6 @@
     "url": "https://www.sportsinjuryclinic.net/acute-knee-injuries/tibial-plateau-fracture",
     "findings": [
       "Fracture"
-    ]
-  },
-  {
-    "title": "Bone Marrow Edema: Diagnosis & Treatment",
-    "url": "https://my.clevelandclinic.org/health/diseases/24622-bone-marrow-edema",
-    "findings": [
-      "Contusion"
     ]
   },
   {
@@ -293,20 +198,6 @@
     ]
   },
   {
-    "title": "Knee Synovitis - Sports Injury Clinic",
-    "url": "https://www.sportsinjuryclinic.net/lateral-knee-pain/knee-synovitis",
-    "findings": [
-      "Synovitis"
-    ]
-  },
-  {
-    "title": "Baker's Cyst (Popliteal Cyst) - Cleveland Clinic",
-    "url": "https://my.clevelandclinic.org/health/diseases/15183-bakers-cyst",
-    "findings": [
-      "Baker's"
-    ]
-  },
-  {
     "title": "Knee Contusion: Recovery, Causes, Treatment & More - Healthline",
     "url": "https://www.healthline.com/health/knee-contusion",
     "findings": [
@@ -328,55 +219,6 @@
     ]
   },
   {
-    "title": "McMurray's Test - Sports Injury Clinic",
-    "url": "https://www.sportsinjuryclinic.net/assessment-tests/mcmurrays-test",
-    "findings": [
-      "Medial Meniscus"
-    ]
-  },
-  {
-    "title": "Thessaly Test For Meniscus Tears - Sports Injury Clinic",
-    "url": "https://www.sportsinjuryclinic.net/assessment-tests/thessaly-test-for-meniscus-tears",
-    "findings": [
-      "Lateral Meniscus"
-    ]
-  },
-  {
-    "title": "Bruise - MedlinePlus Medical Encyclopedia",
-    "url": "https://medlineplus.gov/ency/article/007213.htm",
-    "findings": [
-      "Contusion"
-    ]
-  },
-  {
-    "title": "Periprosthetic Distal Femur Fracture (Broken Bone Near a Knee Replacement)",
-    "url": "https://ota.org/for-patients/find-info-body-part/3725",
-    "findings": [
-      "Fracture"
-    ]
-  },
-  {
-    "title": "Sweep Test - Sports Injury Clinic",
-    "url": "https://www.sportsinjuryclinic.net/assessment-tests/sweep-test",
-    "findings": [
-      "Effusion"
-    ]
-  },
-  {
-    "title": "Patella Tap Test - Sports Injury Clinic",
-    "url": "https://www.sportsinjuryclinic.net/assessment-tests/patella-tap-test",
-    "findings": [
-      "Effusion"
-    ]
-  },
-  {
-    "title": "Isolated Patellofemoral Osteoarthritis: A Systematic Review of Treatment Options",
-    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2852157/",
-    "findings": [
-      "PF OA"
-    ]
-  },
-  {
     "title": "Patellofemoral Arthritis: Symptoms, Treatments, and More - Healthline",
     "url": "https://www.healthline.com/health/arthritis/patellofemoral-arthritis",
     "findings": [
@@ -388,13 +230,6 @@
     "url": "https://www.medicalnewstoday.com/articles/patellofemoral-arthritis",
     "findings": [
       "PF OA"
-    ]
-  },
-  {
-    "title": "Synovitis - Hospital for Special Surgery",
-    "url": "https://www.hss.edu/condition-list_synovitis.asp",
-    "findings": [
-      "Synovitis"
     ]
   },
   {
@@ -429,7 +264,9 @@
     "title": "Tricompartmental Osteoarthritis: Symptoms and Treatments - Medical News Today",
     "url": "https://www.medicalnewstoday.com/articles/321871",
     "findings": [
-      "Lateral OA"
+      "Medial OA",
+      "Lateral OA",
+      "PF OA"
     ]
   },
   {
@@ -466,6 +303,175 @@
     "url": "https://www.nuffieldhealth.com/conditions/synovitis",
     "findings": [
       "Synovitis"
+    ]
+  },
+  {
+    "title": "Medial Collateral Ligament (MCL) Tears & Injuries - HSS",
+    "url": "https://www.hss.edu/health-library/conditions-and-treatments/list/mcl-tear-mcl-injury",
+    "findings": [
+      "MCL"
+    ]
+  },
+  {
+    "title": "MCL tear: Symptoms, diagnosis, and treatment - Medical News Today",
+    "url": "https://www.medicalnewstoday.com/articles/324738",
+    "findings": [
+      "MCL"
+    ]
+  },
+  {
+    "title": "Collateral Ligament Injuries - OrthoInfo - AAOS",
+    "url": "https://www.orthoinfo.org/diseases--conditions/collateral-ligament-injuries/",
+    "findings": [
+      "MCL"
+    ]
+  },
+  {
+    "title": "Medial Collateral Ligament Injury of the Knee (MCL Tear) - Healthline",
+    "url": "https://www.healthline.com/health/medial-collateral-ligament-mcl-injury-of-the-knee",
+    "findings": [
+      "MCL"
+    ]
+  },
+  {
+    "title": "Patellofemoral Arthritis Diagnosis and Treatment - HSS",
+    "url": "https://www.hss.edu/health-library/conditions-and-treatments/patellofemoral-kneecap-arthritis-diagnosis-treatment",
+    "findings": [
+      "PF OA"
+    ]
+  },
+  {
+    "title": "How to treat a bruised knee: Treatment and healing time - Medical News Today",
+    "url": "https://www.medicalnewstoday.com/articles/bruised-knee",
+    "findings": [
+      "Contusion"
+    ]
+  },
+  {
+    "title": "Knee inflammation: causes, diagnosis and treatment - Nuffield Health",
+    "url": "https://www.nuffieldhealth.com/symptoms/knee-inflammation",
+    "findings": [
+      "Effusion",
+      "Baker's"
+    ]
+  },
+  {
+    "title": "Swollen Knee: Causes, Treatment and Prevention - Cleveland Clinic",
+    "url": "https://my.clevelandclinic.org/health/symptoms/17678-swollen-knee",
+    "findings": [
+      "Effusion",
+      "ACL",
+      "MCL"
+    ]
+  },
+  {
+    "title": "Knee Arthritis: Symptoms and Treatment Options - HSS",
+    "url": "https://www.hss.edu/health-library/conditions-and-treatments/list/knee-arthritis",
+    "findings": [
+      "Medial OA",
+      "Lateral OA",
+      "PF OA"
+    ]
+  },
+  {
+    "title": "Tricompartmental Osteoarthritis: Symptoms, Treatment, and More - Healthline",
+    "url": "https://www.healthline.com/health/osteoarthritis/tricompartmental-osteoarthritis",
+    "findings": [
+      "Medial OA",
+      "Lateral OA",
+      "PF OA"
+    ]
+  },
+  {
+    "title": "ACL Tear: Symptoms and Treatments for a Torn ACL - HSS",
+    "url": "https://www.hss.edu/health-library/conditions-and-treatments/list/acl-tear",
+    "findings": [
+      "ACL"
+    ]
+  },
+  {
+    "title": "ACL Injury: Does It Require Surgery? - OrthoInfo - AAOS",
+    "url": "https://www.orthoinfo.org/treatment/acl-injury-does-it-require-surgery/",
+    "findings": [
+      "ACL"
+    ]
+  },
+  {
+    "title": "Torn ACL: Treatment and recovery - Medical News Today",
+    "url": "https://www.medicalnewstoday.com/articles/torn-acl-recovery-time",
+    "findings": [
+      "ACL"
+    ]
+  },
+  {
+    "title": "Baker's Cyst: Causes, Symptoms, & Treatment - WebMD",
+    "url": "https://www.webmd.com/arthritis/what-is-bakers-cysts",
+    "findings": [
+      "Baker's"
+    ]
+  },
+  {
+    "title": "Meniscus tear (knee cartilage damage) - NHS",
+    "url": "https://www.nhs.uk/conditions/meniscus-tear/",
+    "findings": [
+      "Medial Meniscus",
+      "Lateral Meniscus"
+    ]
+  },
+  {
+    "title": "Meniscus Tear: Symptoms & Treatment of a Torn Meniscus - HSS",
+    "url": "https://www.hss.edu/health-library/conditions-and-treatments/list/meniscus-tear",
+    "findings": [
+      "Medial Meniscus",
+      "Lateral Meniscus"
+    ]
+  },
+  {
+    "title": "Meniscus Surgery: Trimming, Repair & Meniscectomy - HSS",
+    "url": "https://www.hss.edu/health-library/conditions-and-treatments/meniscus-surgery-meniscectomy",
+    "findings": [
+      "Medial Meniscus",
+      "Lateral Meniscus"
+    ]
+  },
+  {
+    "title": "Meniscus Tear in Knee: Symptoms, Causes, and Treatments - WebMD",
+    "url": "https://www.webmd.com/pain-management/knee-pain/meniscus-tear-injury",
+    "findings": [
+      "Medial Meniscus",
+      "Lateral Meniscus"
+    ]
+  },
+  {
+    "title": "Meniscus Tear Recovery Time Without Surgery - Healthline",
+    "url": "https://www.healthline.com/health/osteoarthritis/knee-pain/meniscus-tear-recovery-time-without-surgery",
+    "findings": [
+      "Medial Meniscus",
+      "Lateral Meniscus"
+    ]
+  },
+  {
+    "title": "8 meniscus tear exercises to improve strength and reduce pain - Medical News Today",
+    "url": "https://www.medicalnewstoday.com/articles/meniscus-tear-exercises",
+    "findings": [
+      "Medial Meniscus",
+      "Lateral Meniscus"
+    ]
+  },
+  {
+    "title": "Distal Femur (Thighbone) Fractures of the Knee - OrthoInfo - AAOS",
+    "url": "https://www.orthoinfo.org/diseases--conditions/distal-femur-thighbone-fractures-of-the-knee/",
+    "findings": [
+      "Fracture"
+    ]
+  },
+  {
+    "title": "Knee injections for osteoarthritis: Corticosteroids and more - Medical News Today",
+    "url": "https://www.medicalnewstoday.com/articles/310557",
+    "findings": [
+      "Medial OA",
+      "Lateral OA",
+      "PF OA"
     ]
   }
 ]

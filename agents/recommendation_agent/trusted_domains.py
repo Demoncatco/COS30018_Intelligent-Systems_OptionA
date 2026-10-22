@@ -1,6 +1,5 @@
 # Trusted source domains used to filter web search results
 
-# Add new source domains here when updating the document manifest
 
 from urllib.parse import urlparse
 
