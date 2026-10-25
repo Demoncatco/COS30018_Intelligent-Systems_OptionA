@@ -80,6 +80,12 @@ def _apply_guards(action: str, state: RecommendationState) -> tuple[str, str | N
             return "query_doc_store", "model chose stop with nothing retrieved; checking the doc store first"
         return "synthesize", "model chose stop before a recommendation existed"
 
+    # Never write a "no sources" answer while a lookup is still untried: local store first, then the web.
+    if action == "synthesize" and _total_chunks(state) == 0:
+        untried = [tool for tool in TOOL_ACTIONS if tool not in taken]
+        if untried:
+            return untried[0], f"model chose synthesize with nothing retrieved; trying {untried[0]} first"
+
     # Repeating a tool that already ran returns the same results again.
     if action in TOOL_ACTIONS and action in taken:
         other = "web_search" if action == "query_doc_store" else "query_doc_store"

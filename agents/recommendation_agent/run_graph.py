@@ -11,6 +11,7 @@ os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 from .demo_fakes import DEFAULT_DEMO_SCRIPT, DEMO_SCRIPTS, ScriptedLLM, fake_retrieve, fake_search
 from .graph import build_graph, initial_state
 from .stub_inputs import STUB_INPUTS
+from shared.config import get_settings
 
 
 def run_one(stub: dict, demo: bool, max_steps: int) -> dict:
@@ -65,7 +66,7 @@ def main() -> None:
     logging.getLogger("huggingface_hub").setLevel(logging.ERROR)  # "unauthenticated requests" warning
     for logger_name in ("httpx", "httpcore", "urllib3", "huggingface_hub", "sentence_transformers", "filelock"):
         logging.getLogger(logger_name).setLevel(logging.WARNING)
-    if not args.demo and not os.environ.get("TAVILY_API_KEY"):
+    if not args.demo and not get_settings().has_tavily_key:
         print("NOTE: TAVILY_API_KEY not set - web_search will fail (logged) if the model chooses it.\n")
 
     stubs = [stub for stub in STUB_INPUTS if not args.only or stub["name"] == args.only]

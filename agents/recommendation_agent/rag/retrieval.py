@@ -1,12 +1,17 @@
 # Search the local index created by build_index.py
 
 
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+
+if TYPE_CHECKING:  # imported for real inside _load_model, so importing this module stays fast
+    from sentence_transformers import SentenceTransformer
 
 INDEX_DIR = Path(__file__).parent / "data" / "index"
 EMBEDDINGS_PATH = INDEX_DIR / "embeddings.npy"
@@ -45,6 +50,8 @@ def _load_index() -> tuple[np.ndarray, list[dict]]:
 def _load_model() -> SentenceTransformer:
     global _model
     if _model is None:
+        from sentence_transformers import SentenceTransformer
+
         _model = SentenceTransformer(EMBEDDING_MODEL_NAME)
     return _model
 

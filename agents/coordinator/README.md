@@ -72,8 +72,9 @@ result = coordinator.run(study_id, patient_metadata)   # or run_session(state) t
 result.report, result.stats.to_dict(), result.override_rate
 ```
 
-Until then `python -m agents.coordinator --study-id <id>` uses the interim `ModelServiceDiagnostic`
-(Model Service `/predict`, no LLM) and a Recommendation placeholder that fails, so reports are `partial`.
+`python -m agents.coordinator --study-id <id>` uses the real Recommendation Agent
+(`agents.recommendation_agent.runner.RecommendationAgent`) and, until the Diagnostic Agent is merged, the interim
+`ModelServiceDiagnostic` (Model Service `/predict`, no LLM).
 
 ## Validation (20 scenarios)
 

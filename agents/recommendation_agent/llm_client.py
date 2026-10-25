@@ -1,56 +1,50 @@
-# Call Qwen3 through a local Ollama server
+# Call Qwen for the Recommendation Agent through the shared Ollama client (shared/llm.py)
+#
+# The graph nodes only need a plain function: llm(prompt, system) -> reply text.
+# Everything else (model tag, Ollama host, timeout, temperature, seed, thinking mode) comes from .env
+# via get_settings(), and every call is counted under the "recommendation" agent so its tokens and
+# latency show up in LLMClient.usage_summary() and the session trace.
 
-import re
+from __future__ import annotations
 
-import requests
+from collections.abc import Callable
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "qwen3:1.7b"
-REQUEST_TIMEOUT_SECONDS = 120  # CPU-only inference on a small GPU can be slow
+from shared.llm import LLMClient, LLMError
 
-THINK_BLOCK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
+AGENT_NAME = "recommendation"
+
+# Kept so older code that catches OllamaError still works: it is the shared client's error.
+OllamaError = LLMError
+
+LLMFunction = Callable[[str, "str | None"], str]
+
+_default_client: LLMClient | None = None
 
 
-class OllamaError(RuntimeError):
-    """Raised when Ollama can't be reached or returns an error. The message
-    includes Ollama's own explanation, which a bare 'HTTP 500' hides."""
+def _get_default_client() -> LLMClient:
+    # One client per process, created on first use, so importing this module never touches Ollama.
+    global _default_client
+    if _default_client is None:
+        _default_client = LLMClient()
+    return _default_client
+
+
+def make_qwen_caller(client: LLMClient | None = None, session_id: str | None = None) -> LLMFunction:
+    """Return llm(prompt, system) bound to one LLMClient and one session, for the graph nodes."""
+
+    def call(prompt: str, system: str | None = None) -> str:
+        messages = [{"role": "system", "content": system}] if system else []
+        messages.append({"role": "user", "content": prompt})
+        result = (client or _get_default_client()).chat(AGENT_NAME, messages, session_id=session_id)
+        # chat() already moves any <think>...</think> text into result.thinking.
+        return result.content.strip()
+
+    return call
 
 
 def call_qwen(prompt: str, system: str | None = None) -> str:
-    """Sends one prompt to the local Qwen3-1.7B instance and returns the
-    reply text. Does NOT parse or validate the content - that's each node's
-    job - but it does turn transport failures into OllamaError with a
-    readable reason."""
-    payload = {
-        "model": MODEL_NAME,
-        "prompt": prompt,
-        "stream": False,
-        "think": False,  # Qwen3 otherwise writes out its reasoning first
-    }
-    if system:
-        payload["system"] = system
+    """Send one prompt to the Recommendation Agent's model (RECOMMENDATION_MODEL in .env).
 
-    try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=REQUEST_TIMEOUT_SECONDS)
-    except requests.exceptions.ConnectionError as exc:
-        raise OllamaError(
-            f"Could not connect to Ollama at {OLLAMA_URL}. "
-            "Is it running? (check the tray icon, or run `ollama serve`)"
-        ) from exc
-    except requests.exceptions.Timeout as exc:
-        raise OllamaError(
-            f"Ollama did not reply within {REQUEST_TIMEOUT_SECONDS}s "
-            "(model may still be loading, or inference is very slow)."
-        ) from exc
-
-    if not response.ok:
-        # Ollama puts the real reason in the body, e.g. {"error": "..."}
-        try:
-            detail = response.json().get("error", response.text)
-        except ValueError:
-            detail = response.text
-        raise OllamaError(f"Ollama returned HTTP {response.status_code} for model '{MODEL_NAME}': {detail}")
-
-    text = response.json().get("response", "")
-    # Some Ollama versions still put <think>...</think> in the reply; strip it.
-    return THINK_BLOCK_PATTERN.sub("", text).strip()
+    Raises LLMError (alias OllamaError) with a readable reason if Ollama is down, the model is
+    not pulled, or the call times out."""
+    return make_qwen_caller()(prompt, system)

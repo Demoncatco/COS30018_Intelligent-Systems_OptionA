@@ -1,8 +1,9 @@
 # Search Tavily and keep results from trusted domains
 
 import logging
-import os
 from typing import Callable
+
+from shared.config import get_settings
 
 from ..state import RecommendationState, RetrievedChunk
 from ..trusted_domains import TRUSTED_DOMAINS, is_trusted_domain
@@ -17,7 +18,11 @@ def _tavily_search(query: str, max_results: int) -> list[dict]:
     """Load Tavily only when a live search is needed."""
     from tavily import TavilyClient
 
-    client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
+    # The key comes from .env through shared/config.py; the .env.example placeholder counts as unset.
+    settings = get_settings()
+    if not settings.has_tavily_key:
+        raise RuntimeError("TAVILY_API_KEY is not set in .env, so web search is unavailable")
+    client = TavilyClient(api_key=settings.tavily_api_key.get_secret_value())
     # Limit the search to trusted sites, then check each result below.
     response = client.search(
         query=query,

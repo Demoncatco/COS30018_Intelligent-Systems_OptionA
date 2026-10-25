@@ -290,7 +290,7 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 ├── agents/
 │   ├── coordinator/             ✅ Coordinator Agent (Ren), see agents/coordinator/README.md
 │   ├── diagnostic_agent/        ⬜ Diagnostic Agent (Justin)
-│   └── recommendation_agent/    🟡 graph state + schema tests (Christina)
+│   └── recommendation_agent/    ✅ LangGraph RAG loop + Coordinator adapter (Christina), see agents/recommendation_agent/README.md
 ├── backend/                     ⬜ FastAPI backend: sessions, event stream, baseline (Ren) — planned location
 ├── evaluation/
 │   ├── run_eval.py              ⬜ evaluation runner (30+ cases, multi-agent vs baseline)
@@ -434,8 +434,8 @@ Live mode reads the input size from the checkpoint, so it always matches trainin
 
 ### 8.2 Coordinator Agent
 
-Smoke run against the running Model Service (uses interim stand-ins until the Diagnostic and
-Recommendation Agents are merged, so the report is `partial`):
+Smoke run against the running Model Service. The Recommendation Agent is the real one (needs Ollama and the
+local index); the Diagnostic Agent is still the interim Model Service adapter:
 
 ```bash
 python -m agents.coordinator --study-id <study_id>                 # Qwen

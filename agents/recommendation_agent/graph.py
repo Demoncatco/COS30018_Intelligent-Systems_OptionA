@@ -27,6 +27,8 @@ def initial_state(
     finding: str,
     user_query: str | None = None,
     max_steps: int = DEFAULT_MAX_STEPS,
+    impression: str | None = None,
+    patient_context: str | None = None,
 ) -> RecommendationState:
     state: RecommendationState = {
         "finding": finding,
@@ -38,6 +40,10 @@ def initial_state(
     }
     if user_query:
         state["user_query"] = user_query
+    if impression:
+        state["impression"] = impression
+    if patient_context:
+        state["patient_context"] = patient_context
     return state
 
 

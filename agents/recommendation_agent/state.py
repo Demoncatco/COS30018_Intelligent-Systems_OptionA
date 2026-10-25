@@ -16,6 +16,10 @@ class RecommendationState(TypedDict, total=False):
     finding: Required[str]
     user_query: str
 
+    # Context from the Coordinator, shown to the model in synthesize only (never used as instructions)
+    impression: str           # the Diagnostic Agent's plain-language initial impression
+    patient_context: str      # age, sex, symptoms and injury mechanism, as one labelled line
+
     # Loop control - set by graph.initial_state(), updated as the graph runs
     max_steps: int            # hard cap on decide_action calls before synthesis is forced
     step_count: int           # how many times decide_action has run
