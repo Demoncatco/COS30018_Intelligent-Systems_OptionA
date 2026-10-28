@@ -61,12 +61,22 @@ class Settings(BaseSettings):
     report_threshold: float = Field(default=0.5, ge=0, le=1)  # probability at or above which a finding is reported
     low_confidence_threshold: float = Field(default=0.6, ge=0, le=1)  # confidence below which a finding is flagged
 
+    # --- Backend (FastAPI, backend/) ---
+    # "auto" uses agents.diagnostic_agent.agent.DiagnosticAgent when it exists, else the interim Model Service adapter.
+    diagnostic_impl: Literal["auto", "agent", "interim"] = "auto"
+    backend_max_workers: int = Field(default=2, ge=1, le=16)  # sessions running at once; the rest wait as "pending"
+    backend_max_sessions: int = Field(default=200, ge=1)  # kept in memory; older finished ones are read from logs/
+    backend_max_pending: int = Field(default=20, ge=0)  # queued sessions allowed before POST returns 429
+    backend_cors_origins: str = "http://localhost:5173,http://localhost:3000"  # comma-separated, for the React dev server
+
     # --- Recommendation Agent ---
     tavily_api_key: SecretStr | None = None
 
     # --- Logging ---
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_dir: str = "logs"
+    log_max_bytes: int = Field(default=10_000_000, ge=10_000)  # app.jsonl rotates at this size
+    log_backup_count: int = Field(default=5, ge=0, le=50)  # rotated files kept (app.jsonl.1 ...)
 
     # --- Validation ---
 
@@ -131,6 +141,10 @@ class Settings(BaseSettings):
     def uses_tool_calls(self, agent: str) -> bool:
         # Qwen gets native tool calls; other models (MedGemma) use JSON-schema output via LLMClient.decide.
         return uses_qwen(self.model_for(agent))
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.backend_cors_origins.split(",") if o.strip()]
 
     @property
     def has_tavily_key(self) -> bool:

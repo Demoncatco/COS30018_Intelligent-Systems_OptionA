@@ -1,7 +1,6 @@
 """Smoke run against the Model Service: python -m agents.coordinator --study-id <id> [--driver fixed].
 
-Diagnostic: interim Model Service adapter until the Diagnostic Agent is merged (see build_runners).
-Recommendation: the real Recommendation Agent (needs Ollama and the local index).
+Agents come from wiring.build_runners (DIAGNOSTIC_IMPL picks the real Diagnostic Agent or the interim adapter).
 """
 
 from __future__ import annotations
@@ -10,17 +9,11 @@ import argparse
 import json
 
 from agents.coordinator.agent import CoordinatorAgent
-from agents.coordinator.runners import ModelServiceDiagnostic
-from agents.recommendation_agent.runner import RecommendationAgent
+from agents.coordinator.wiring import build_runners
 from shared.config import get_settings
 from shared.llm import LLMClient
 from shared.logging_setup import setup_logging
 from shared.schema import PatientMetadata
-
-
-def build_runners(settings, llm: LLMClient):
-    # TODO: swap in the real Diagnostic Agent.
-    return ModelServiceDiagnostic(settings), RecommendationAgent(llm=llm, settings=settings)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,8 +30,9 @@ def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
     # One client for the whole run. The Recommendation Agent always needs it; the Coordinator only when an LLM drives it.
     llm = LLMClient(settings)
-    diagnostic, recommendation = build_runners(settings, llm)
-    coordinator = CoordinatorAgent(diagnostic, recommendation, llm=llm if args.driver != "fixed" else None,
+    runners = build_runners(settings, llm)
+    print("agents:", "; ".join(runners.notes))
+    coordinator = CoordinatorAgent(runners.diagnostic, runners.recommendation, llm=llm if args.driver != "fixed" else None,
                                    settings=settings, driver=args.driver,
                                    on_event=lambda e: print(f"[{e.seq:>3}] {e.agent.value:<14} {e.kind:<11} {e.message}"))
     patient = PatientMetadata(age=args.age, sex=args.sex, symptoms=args.symptoms,
