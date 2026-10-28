@@ -1,0 +1,1 @@
+"""FastAPI backend: sessions, live trace, baseline. Run with uvicorn backend.main:app --port 8000."""
