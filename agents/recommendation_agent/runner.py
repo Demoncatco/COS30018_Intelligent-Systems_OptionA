@@ -1,19 +1,6 @@
-# Adapter between the Coordinator and the LangGraph recommendation loop.
-#
-# The Coordinator calls every agent through one function with a fixed contract (agents/coordinator/runners.py):
-#     recommendation(request: CoordinatorRequest, *, session_id: str) -> RecommendationResponse
-# The graph (graph.py) works on ONE finding name and returns a text recommendation plus the chunks it used.
-# This file sits in between:
-#   1. picks the findings worth looking up (probability >= REPORT_THRESHOLD, strongest first),
-#   2. runs the graph once per finding, with the shared LLM client bound to this session, passing on the
-#      Diagnostic Agent's impression and the patient details so the advice fits this patient,
-#   3. turns the graph's results into a RecommendationResponse: text, citations, evidence_status,
-#      urgency, concerns and suggested_recheck.
-# Steps 1 and 3 are plain code, so the parts the Coordinator's rules depend on never come from the LLM.
-#
-# Plug it in:
-#     from agents.recommendation_agent.runner import RecommendationAgent
-#     recommendation = RecommendationAgent(llm=LLMClient())
+# Coordinator adapter for researching reported findings and building the final response
+# The graph handles evidence gathering and writing for each finding
+# This adapter applies reporting thresholds, session caching, urgency and recheck rules
 
 from __future__ import annotations
 
@@ -37,19 +24,18 @@ from .llm_client import make_qwen_caller
 from .nodes.decide_action import DEFAULT_MAX_STEPS
 from .nodes.synthesize import enforce_disclaimer
 
-# At most this many findings are looked up per call. Each one costs several LLM calls, and the Coordinator
-# stops waiting after TOOL_TIMEOUT_S, so looking up all 12 would time out.
+# Limit per-request graph runs to reduce model calls within the Coordinator tool timeout
 DEFAULT_MAX_FINDINGS = 3
 
-# --- Urgency rules (agree these with the team; they are triage defaults, not clinical guidance) ---
+# Project triage defaults used to label urgency from reported findings
 URGENT_FINDINGS = {"Fracture"}
 SEE_DOCTOR_SOON_FINDINGS = {"ACL", "MCL", "Medial Meniscus", "Lateral Meniscus", "Contusion", "Effusion", "Synovitis"}
-# Medial OA, Lateral OA, PF OA and Baker's are usually long-term conditions: routine follow-up.
+# Other finding categories map to routine follow-up in these project rules
 
-# --- Plausibility rules for concerns / suggested_recheck ---
-# A reported finding this close above the threshold counts as borderline.
+# Score-pattern heuristics used to raise concerns and request a recheck
+# A reported finding this close above the threshold counts as borderline
 BORDERLINE_MARGIN = 0.1
-# Findings that usually come with a fracture on MRI. A fracture with none of them is an unusual pattern.
+# The plausibility rule asks for review when neither of these accompanies a reported fracture
 FRACTURE_COMPANIONS = ("Contusion", "Effusion")
 
 GENERAL_QUERY = "knee pain and swelling: when to see a doctor"
@@ -58,14 +44,13 @@ NO_FINDINGS_TEXT = (
     "continues, this may indicate something the scan did not show, so please consult a clinician."
 )
 
-# Sessions whose looked-up findings are kept, so the senior's second review after a recheck does not repeat
-# the same searches when nothing it depends on has changed. Oldest sessions are dropped first.
+# Cache results for at most this many sessions and evict the least recently accessed session first
 MAX_CACHED_SESSIONS = 32
 
 
 @dataclass
 class FindingResult:
-    """What the graph produced for one finding."""
+    """Store the recommendation, evidence and graph trace for one researched finding"""
 
     finding: str
     probability: float
@@ -77,11 +62,12 @@ class FindingResult:
 
     @property
     def has_evidence(self) -> bool:
+        """Treat either local or web chunks as retrieved evidence"""
         return bool(self.local_chunks or self.web_chunks)
 
 
 class RecommendationAgent:
-    """Callable that matches the Coordinator's RecommendationRunner contract. Raises on LLM failure."""
+    """Implement the Coordinator runner contract and let model failures reach its retry handling"""
 
     def __init__(
         self,
@@ -94,7 +80,8 @@ class RecommendationAgent:
         max_steps: int = DEFAULT_MAX_STEPS,
         max_findings: int = DEFAULT_MAX_FINDINGS,
     ) -> None:
-        # llm_fn replaces the model entirely (tests and --demo); otherwise calls go through `llm`.
+        """Configure graph services and limits, with optional fake functions for isolated runs"""
+        # llm_fn replaces model calls; otherwise use the shared LLM client
         self.llm = llm
         self.settings = settings or (llm.settings if llm is not None else get_settings())
         self.retrieve_fn = retrieve_fn
@@ -104,10 +91,14 @@ class RecommendationAgent:
         self.max_findings = max_findings
         self._cache: OrderedDict[str, dict[str, FindingResult]] = OrderedDict()
 
-    # --- Entry point ---
+    # Coordinator entry point
 
     def __call__(self, request: CoordinatorRequest, *, session_id: str) -> RecommendationResponse:
+        """Research the strongest reportable findings and assemble the shared response schema
+        Urgency and plausibility checks consider all reported findings, including those outside the lookup cap
+        """
         threshold = self.settings.report_threshold
+        # Sorting is stable, so equal scores retain the shared FINDINGS order
         reported = sorted((n for n in FINDINGS if request.finding[n] >= threshold),
                           key=lambda n: -request.finding[n])
         looked_up = reported[: self.max_findings]
@@ -116,6 +107,7 @@ class RecommendationAgent:
         if len(reported) > len(looked_up):
             trace.append(f"looked up the {len(looked_up)} strongest findings; skipped {reported[len(looked_up):]}")
 
+        # If no findings are selected, use general guidance without a finding-specific model call
         if not looked_up:
             results: list[FindingResult] = []
             text, citations, evidence = self._no_findings(trace)
@@ -128,6 +120,7 @@ class RecommendationAgent:
             citations = _unique_urls(c for r in results for c in (*r.local_chunks, *r.web_chunks))
             evidence = _evidence_status(results)
 
+        # Keep urgency and recheck decisions deterministic rather than asking the model to choose them
         concerns, recheck = plausibility_checks(request, self.settings)
         urgency = urgency_for(reported)
         trace.append(f"evidence={evidence.value}; urgency={urgency.value}; recheck requests={recheck or 'none'}")
@@ -137,15 +130,17 @@ class RecommendationAgent:
             trace=trace, concerns=concerns, suggested_recheck=recheck,
         )
 
-    # --- Steps ---
+    # Per-finding workflow and response assembly
 
     def _research(self, finding: str, request: CoordinatorRequest, session_id: str) -> FindingResult:
-        # A second review reuses the earlier result only if the impression is unchanged. A recheck that changes
-        # the impression gets a fresh recommendation, so the text never describes the old result.
+        """Run or reuse one finding within a session
+        The cache key includes the finding and imaging impression, but not patient details or probability
+        """
         session = self._cache.setdefault(session_id, {})
         self._cache.move_to_end(session_id)
         while len(self._cache) > MAX_CACHED_SESSIONS:
             self._cache.popitem(last=False)
+        # Reuse is scoped by session, finding and impression; scores are refreshed in the returned result
         key = f"{finding}|{request.impression}"
         if key in session:
             cached = session[key]
@@ -153,6 +148,7 @@ class RecommendationAgent:
                                  cached.web_chunks, ["reused the sources found earlier in this session"], [])
 
         llm_fn = self.llm_fn or make_qwen_caller(self.llm, session_id=session_id)
+        # Bind the session to the shared LLM client so usage is attributed to the correct study
         graph = build_graph(llm=llm_fn, retrieve_fn=self.retrieve_fn, search_fn=self.search_fn)
         final = graph.invoke(
             initial_state(finding, _search_query(finding, request), self.max_steps,
@@ -172,7 +168,9 @@ class RecommendationAgent:
         return result
 
     def _no_findings(self, trace: list[str]) -> tuple[str, list[str], EvidenceStatus]:
-        # Nothing to look up per finding, so the general "when to see a doctor" guidance is grounded instead.
+        """Attach general local guidance evidence when no finding reaches the reporting threshold
+        The response text stays fixed and retrieval failure is reported as an evidence gap
+        """
         retrieve = self.retrieve_fn
         if retrieve is None:
             from .rag.retrieval import retrieve
@@ -188,16 +186,17 @@ class RecommendationAgent:
 
     @staticmethod
     def _combine_text(results: list[FindingResult]) -> str:
+        """Join labelled finding sections and check the disclaimer on the combined text"""
         sections = [f"{r.finding} (model probability {r.probability:.2f})\n{r.recommendation.strip()}"
                     for r in results]
         text, _ = enforce_disclaimer("\n\n".join(sections))  # each section already has one; this is a backstop
         return text
 
 
-# --- Rules (plain functions so they can be tested and explained on their own) ---
+# Deterministic response rules, separate from retrieval and model calls
 
 def urgency_for(reported: list[str]) -> UrgencyLevel:
-    """Most urgent level among the reported findings."""
+    """Return the highest urgency category triggered by the reported findings"""
     found = set(reported)
     if found & URGENT_FINDINGS:
         return UrgencyLevel.URGENT
@@ -207,19 +206,21 @@ def urgency_for(reported: list[str]) -> UrgencyLevel:
 
 
 def plausibility_checks(request: CoordinatorRequest, settings: Settings) -> tuple[list[str], list[str]]:
-    """The senior's doubts about the junior's findings: (concerns, suggested_recheck)."""
+    """Flag configured score patterns for review and return rechecks in FINDINGS order
+    These are project heuristics rather than an LLM judgement or a validated clinical rule
+    """
     threshold = settings.report_threshold
     scores = request.finding
     reported = [n for n in FINDINGS if scores[n] >= threshold]
     concerns: list[str] = []
     recheck: list[str] = []
 
-    # 1. A fracture usually shows bone bruising or joint fluid as well.
+    # 1. A fracture usually shows bone bruising or joint fluid as well
     if "Fracture" in reported and not any(scores[c] >= threshold for c in FRACTURE_COMPANIONS):
         concerns.append(f"Fracture {scores['Fracture']:.2f} without Contusion or Effusion is an unusual pattern.")
         recheck.append("Fracture")
 
-    # 2. Low overall confidence plus findings that only just passed the threshold.
+    # 2. Low overall confidence plus findings that only just passed the threshold
     if request.confidence < settings.low_confidence_threshold:
         borderline = [n for n in reported if scores[n] < threshold + BORDERLINE_MARGIN]
         if borderline:
@@ -232,7 +233,7 @@ def plausibility_checks(request: CoordinatorRequest, settings: Settings) -> tupl
 
 
 def patient_context(patient: PatientMetadata) -> str:
-    """The patient details as one short line for the synthesis prompt, leaving out anything not given."""
+    """Build one labelled context line using only patient details that were supplied"""
     parts = []
     if patient.age is not None:
         parts.append(f"age {patient.age}")
@@ -246,13 +247,16 @@ def patient_context(patient: PatientMetadata) -> str:
 
 
 def _search_query(finding: str, request: CoordinatorRequest) -> str:
-    # The patient's symptoms sharpen the search; they are only used as a search query, never as instructions.
+    """Add up to 200 symptom characters to a finding-specific treatment and recovery query"""
     symptoms = request.patient_metadata.symptoms.strip()
     query = f"{finding} treatment and recovery"
     return f"{query}, patient reports: {symptoms[:200]}" if symptoms else query
 
 
 def _evidence_status(results: list[FindingResult]) -> EvidenceStatus:
+    """Prefer web grounding when any web chunks exist, then local grounding, then no evidence
+    This labels retrieved evidence availability rather than checking each generated claim
+    """
     if not any(r.has_evidence for r in results):
         return EvidenceStatus.NO_CREDIBLE_SOURCE_FOUND
     if any(r.web_chunks for r in results):
@@ -261,4 +265,5 @@ def _evidence_status(results: list[FindingResult]) -> EvidenceStatus:
 
 
 def _unique_urls(chunks) -> list[str]:
+    """Keep non-empty citation URLs in first-seen order using exact-string deduplication"""
     return list(dict.fromkeys(c["source_url"] for c in chunks if c.get("source_url")))

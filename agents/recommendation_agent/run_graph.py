@@ -1,10 +1,12 @@
-# Run the graph on sample inputs. Use --demo for scripted responses.
+# Command-line entry point for running the graph on the examples in stub_inputs.py
+# Demo mode substitutes scripted services; normal mode uses the configured model and source services
+# Each run prints the recommendation, available sources, steps and recorded tool errors
 
 import argparse
 import logging
 import os
 
-# Set these before importing the graph; the model libraries read them on import.
+# Set these before importing the graph; the model libraries read them on import
 os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 
@@ -15,6 +17,7 @@ from shared.config import get_settings
 
 
 def run_one(stub: dict, demo: bool, max_steps: int) -> dict:
+    """Run one example with real services or scripted replacements and the same graph structure"""
     graph_options = {}
     if demo:
         graph_options = {
@@ -30,6 +33,7 @@ def run_one(stub: dict, demo: bool, max_steps: int) -> dict:
 
 
 def print_result(final: dict) -> None:
+    """Show the final text, unique available source URLs, decision count and recorded errors"""
     print("\n--- RESULT ---")
     print(final["recommendation"])
     sources = {
@@ -45,6 +49,9 @@ def print_result(final: dict) -> None:
 
 
 def main() -> None:
+    """Parse example-selection options, configure logging and run the chosen inputs
+    Listing examples exits before a graph is built
+    """
     parser = argparse.ArgumentParser(description="Run the Recommendation Agent graph on stub inputs")
     parser.add_argument("--demo", action="store_true", help="use scripted fakes instead of Qwen/index/Tavily")
     parser.add_argument("--only", help="run only the stub with this name")
@@ -60,10 +67,10 @@ def main() -> None:
     if args.only and args.only not in {stub["name"] for stub in STUB_INPUTS}:
         raise SystemExit(f"No stub named {args.only!r}. Run with --list to see the names.")
 
-    # Show agent progress and keep library logs quiet.
+    # Show agent progress and keep library logs quiet
     logging.basicConfig(level=logging.WARNING, format="%(message)s")
     logging.getLogger("recommendation_agent").setLevel(logging.INFO)
-    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)  # "unauthenticated requests" warning
+    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)  # Set a library-specific level before the warning-level loop below
     for logger_name in ("httpx", "httpcore", "urllib3", "huggingface_hub", "sentence_transformers", "filelock"):
         logging.getLogger(logger_name).setLevel(logging.WARNING)
     if not args.demo and not get_settings().has_tavily_key:

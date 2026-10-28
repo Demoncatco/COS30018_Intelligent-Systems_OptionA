@@ -1,8 +1,9 @@
-# Example Coordinator requests for testing
+# Example CoordinatorRequest values covering strong, weak, uncertain and recheck scenarios
+# Each request supplies a complete finding-score mapping to satisfy the shared schema
 
 from shared.schema import CoordinatorRequest, FINDINGS
 
-# Strong finding with good local source coverage
+# Strong ACL score used to exercise a confident positive request
 STRONG_FINDING = CoordinatorRequest(
     finding={**{k: 0.05 for k in FINDINGS}, "ACL": 0.92},
     confidence=0.89,
@@ -10,7 +11,7 @@ STRONG_FINDING = CoordinatorRequest(
     task_type="initial",
 )
 
-# Finding with limited local source coverage
+# Synovitis example used to exercise limited-evidence scenarios
 WEAK_COVERAGE_FINDING = CoordinatorRequest(
     finding={**{k: 0.05 for k in FINDINGS}, "Synovitis": 0.71},
     confidence=0.65,

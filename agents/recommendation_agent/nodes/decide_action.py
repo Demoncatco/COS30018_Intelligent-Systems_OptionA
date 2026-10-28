@@ -1,4 +1,5 @@
-# Choose the next action and prevent repeated tools or an early stop
+# Choose the next graph action using Qwen, then enforce workflow rules in code
+# Parsing retries handle invalid replies; guards prevent repeated tools and premature completion
 
 import json
 import re
@@ -9,8 +10,8 @@ from ..state import RecommendationState
 
 VALID_ACTIONS = {"query_doc_store", "web_search", "synthesize", "stop"}
 TOOL_ACTIONS = ("query_doc_store", "web_search")
-DEFAULT_ACTION = "query_doc_store"  # Check local sources first.
-DEFAULT_MAX_STEPS = 6  # Force synthesis after this many decisions.
+DEFAULT_ACTION = "query_doc_store"  # Check local sources first
+DEFAULT_MAX_STEPS = 6  # Force synthesis after this many decisions
 MAX_ATTEMPTS = 2  # Initial prompt and one stricter retry
 
 JSON_BLOCK_PATTERN = re.compile(r"\{.*\}", re.DOTALL)
@@ -25,6 +26,9 @@ SYSTEM_PROMPT = (
 
 
 def _build_prompt(state: RecommendationState, strict: bool) -> str:
+    """Describe available evidence, completed actions and whether a recommendation exists
+    The retry adds a stricter formatting instruction without changing the requested action rules
+    """
     context = (
         f"Finding: {state.get('finding')}\n"
         f"Actions already taken: {state.get('actions_taken', []) or 'none'}\n"
@@ -45,7 +49,9 @@ def _build_prompt(state: RecommendationState, strict: bool) -> str:
 
 
 def _extract_action(raw_response: str) -> str | None:
-    """Read a valid action from the JSON in a model response, or return None."""
+    """Parse the matched brace-delimited JSON object and accept only known action values
+    The greedy pattern spans the first opening brace through the last closing brace
+    """
     match = JSON_BLOCK_PATTERN.search(raw_response)
     if not match:
         return None
@@ -62,31 +68,34 @@ def _extract_action(raw_response: str) -> str | None:
 
 
 def _total_chunks(state: RecommendationState) -> int:
+    """Count local and web chunks together when checking whether evidence is available"""
     return len(state.get("retrieved_chunks") or []) + len(state.get("web_results") or [])
 
 
 def _fallback_action(state: RecommendationState) -> str:
-    """Use the available sources, or search locally if there are none."""
+    """Use the available sources, or request a local lookup if no sources were retrieved"""
     return "synthesize" if _total_chunks(state) else DEFAULT_ACTION
 
 
 def _apply_guards(action: str, state: RecommendationState) -> tuple[str, str | None]:
-    """Replace repeated tools or an early stop. Return the action and an optional note."""
+    """Redirect premature stops, empty-evidence synthesis and repeated tools
+    Return a note whenever code overrides the model so the trace explains the decision
+    """
     taken = state.get("actions_taken", [])
 
-    # Gather sources or write a recommendation before stopping.
+    # Gather sources or write a recommendation before stopping
     if action == "stop":
         if _total_chunks(state) == 0 and "query_doc_store" not in taken:
             return "query_doc_store", "model chose stop with nothing retrieved; checking the doc store first"
         return "synthesize", "model chose stop before a recommendation existed"
 
-    # Never write a "no sources" answer while a lookup is still untried: local store first, then the web.
+    # Never write a "no sources" answer while a lookup is still untried: local store first, then the web
     if action == "synthesize" and _total_chunks(state) == 0:
         untried = [tool for tool in TOOL_ACTIONS if tool not in taken]
         if untried:
             return untried[0], f"model chose synthesize with nothing retrieved; trying {untried[0]} first"
 
-    # Repeating a tool that already ran returns the same results again.
+    # Repeating a tool that already ran returns the same results again
     if action in TOOL_ACTIONS and action in taken:
         other = "web_search" if action == "query_doc_store" else "query_doc_store"
         if _total_chunks(state) == 0 and other not in taken:
@@ -100,7 +109,9 @@ def decide_action(
     state: RecommendationState,
     llm: Callable[[str, str | None], str] = call_qwen,
 ) -> RecommendationState:
-    """Choose the next action, applying retries, fallbacks, and the step limit."""
+    """Increment the decision count, then stop, force synthesis or ask the model for an action
+    Invalid replies get one stricter retry before a fallback action is checked by the guards
+    """
     steps = state.get("step_count", 0)
     max_steps = state.get("max_steps", DEFAULT_MAX_STEPS)
 
@@ -109,6 +120,7 @@ def decide_action(
     new_state["action_used_fallback"] = False
     new_state["decision_note"] = ""
 
+    # Completed text and the step limit take priority over another model call
     if state.get("recommendation"):
         new_state["action"] = "stop"
         new_state["decision_note"] = "recommendation already written"
@@ -119,6 +131,7 @@ def decide_action(
         new_state["decision_note"] = f"step cap of {max_steps} reached; forcing synthesize"
         return new_state
 
+    # Only formatting failures are retried here; service failures propagate to the graph caller
     action = None
     for attempt in range(MAX_ATTEMPTS):
         prompt = _build_prompt(state, strict=attempt > 0)

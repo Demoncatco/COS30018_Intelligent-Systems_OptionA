@@ -50,7 +50,8 @@ Open <http://localhost:8000/docs> and try `POST /sessions` with `{"study_id": "t
 | Diagnostic Agent (MedGemma) | Report extractor working (`findings.csv`); the agent itself (`agent.py`) pending. Until then the backend uses the interim Model Service adapter automatically |
 | FastAPI backend, baseline, live trace | Working (section 8.3) |
 | Logging, traces, sandboxing, timeouts, CI | Working (sections 11–13) |
-| React frontend, 30+ case evaluation | Pending |
+| System evaluation (39 tasks, multi-agent vs baseline) | Harness, test set and metrics ready (`evaluation/README.md`); real results pending a run with Ollama |
+| React frontend | Pending |
 
 ---
 
@@ -331,10 +332,15 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   └── tests/                   ✅ API tests + shared fakes (no servers needed)
 ├── tests/                       ✅ engineering requirements: disclaimer, sandboxing, timeouts, logging
 ├── evaluation/
-│   ├── run_eval.py              ⬜ evaluation runner (30+ cases, multi-agent vs baseline)
+│   ├── README.md                ✅ evaluation method, metrics, rubric, how to run (read this first)
+│   ├── run_eval.py              ✅ system evaluation runner (39 tasks, multi-agent vs baseline, fault injection)
+│   ├── eval_tasks.py            ✅ test set loader/validator, Model Service replay fixture
+│   ├── eval_checks.py           ✅ automatic outcome/safety/grounding/relevance/uncertainty checks, quality score
+│   ├── eval_metrics.py          ✅ metrics, CSV/JSON/Markdown outputs, human review sheet and summary
+│   ├── eval_faults.py           ✅ injected faults (services down, transient errors, timeouts)
+│   ├── test_cases/              ✅ 22 development + 17 unseen tasks
 │   ├── coordinator_scenarios.py ✅ 20 Coordinator validation scenarios
-│   ├── coordinator_validation.py ✅ Coordinator validation runner and metrics
-│   └── test_cases/              ⬜ evaluation test set
+│   └── coordinator_validation.py ✅ Coordinator validation runner and metrics
 ├── frontend/src/                ⬜ React frontend
 ├── index.html, script.js, style.css   🟡 static UI prototype
 ├── model_service/
@@ -541,6 +547,17 @@ Currently a static prototype: open `index.html` in a browser. The React app in `
 talk to the backend: `POST /sessions` to start, `GET /sessions/{id}/stream` for the live trace,
 `GET /sessions/{id}/report` for the result (example in section 8.3). Add the dev server's address to
 `BACKEND_CORS_ORIGINS` if it is not on port 5173 or 3000.
+
+### 8.5 System evaluation
+
+The full evaluation (39 tasks through the real agents, multi-agent vs baseline) is described in
+[`evaluation/README.md`](evaluation/README.md). With Ollama running:
+
+```bash
+python -m evaluation.run_eval --tasks D01 --system multi_agent # one task, to time it
+python -m evaluation.run_eval                                  # everything -> evaluation/results/system/<run>/
+python -m evaluation.run_eval --resume <run folder>            # continue an interrupted run
+```
 
 ---
 
@@ -771,5 +788,6 @@ Known gaps to close; tick them off as PRs merge.
       `(DiagnosticAgentRequest, *, session_id) -> DiagnosticAgentResponse`. Picked up automatically; check with
       `GET /health` (`"diagnostic": "agent"`).
 - [ ] React frontend connected to `/sessions`, `/stream` and `/report`.
-- [ ] Evaluation runner (`evaluation/run_eval.py`): 30+ cases through `POST /sessions` and `POST /baseline`
-      with `?wait_s=`, comparing status, findings, urgency, tokens and latency.
+- [x] Evaluation runner (`evaluation/run_eval.py`): 39 cases through the same agent wiring as the backend
+      (in-process, with fault injection), multi-agent vs baseline. See `evaluation/README.md`.
+- [ ] Run the full evaluation with Ollama, fill in the human review sheet, and report the results.

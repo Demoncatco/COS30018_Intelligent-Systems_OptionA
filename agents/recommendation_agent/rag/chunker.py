@@ -1,4 +1,6 @@
-# Split fetched documents into overlapping chunks
+# Offline RAG preparation: split source text into overlapping chunks
+# Paragraphs and sentence boundaries keep related text together where possible
+# Source URLs and finding tags stay attached so retrieved evidence can be filtered and cited
 
 import re
 from pathlib import Path
@@ -7,28 +9,32 @@ CHUNK_TARGET_CHARS = 800
 CHUNK_OVERLAP_CHARS = 150
 CHUNK_MIN_CHARS = 200
 
-# Split longer paragraphs into sentences before packing chunks.
+# Split longer paragraphs into sentences before packing chunks
 LONG_PARAGRAPH_THRESHOLD = int(CHUNK_TARGET_CHARS * 1.5)
 
 SENTENCE_SPLIT_PATTERN = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
 
 
 def slugify(title: str) -> str:
+    """Use the same filename convention as fetching so source text can be found reliably"""
     slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")
     return slug[:60]
 
 
 def split_into_paragraphs(text: str) -> list[str]:
+    """Split on blank lines and remove empty paragraphs"""
     paragraphs = re.split(r"\n\s*\n", text)
     return [p.strip() for p in paragraphs if p.strip()]
 
 
 def split_into_sentences(paragraph: str) -> list[str]:
+    """Use punctuation and a following capital or digit as a simple sentence-boundary heuristic"""
     sentences = SENTENCE_SPLIT_PATTERN.split(paragraph)
     return [s.strip() for s in sentences if s.strip()]
 
 
 def units_for_document(text: str) -> list[str]:
+    """Keep ordinary paragraphs together and divide long paragraphs into sentence units"""
     units = []
     for paragraph in split_into_paragraphs(text):
         if len(paragraph) > LONG_PARAGRAPH_THRESHOLD:
@@ -39,7 +45,9 @@ def units_for_document(text: str) -> list[str]:
 
 
 def hard_split_long_unit(unit: str) -> list[str]:
-    # Split oversized sentences at word boundaries.
+    """Pack an oversized unit into word-based pieces
+    A single word longer than the target remains intact rather than being cut mid-word
+    """
     words = unit.split(" ")
     pieces, current = [], ""
     for word in words:
@@ -55,7 +63,7 @@ def hard_split_long_unit(unit: str) -> list[str]:
 
 
 def overlap_prefix(previous_chunk_text: str) -> str:
-    # Keep the end of the previous chunk, starting at a word boundary.
+    """Reuse the end of the previous chunk, moving the start past the first space in the slice"""
     if len(previous_chunk_text) <= CHUNK_OVERLAP_CHARS:
         return previous_chunk_text
     tail = previous_chunk_text[-CHUNK_OVERLAP_CHARS:]
@@ -64,7 +72,10 @@ def overlap_prefix(previous_chunk_text: str) -> str:
 
 
 def pack_units_into_chunks(units: list[str]) -> list[str]:
-    # Split any units that exceed the chunk target.
+    """Pack units toward the target size with overlap between neighbouring chunks
+    Overlap and the final small-chunk merge can make chunks larger than the target
+    """
+    # Split oversized units before packing, preserving complete words
     expanded = []
     for unit in units:
         if len(unit) > CHUNK_TARGET_CHARS:
@@ -82,7 +93,7 @@ def pack_units_into_chunks(units: list[str]) -> list[str]:
             current = candidate
             continue
 
-        # Start the next chunk with some overlap from the current one.
+        # Start the next chunk with some overlap from the current one
         if current:
             chunks.append(current)
         prefix = overlap_prefix(current) if current else ""
@@ -100,6 +111,7 @@ def pack_units_into_chunks(units: list[str]) -> list[str]:
 
 
 def chunk_document_text(text: str) -> list[str]:
+    """Run paragraph and sentence preparation, then pack the resulting units into chunks"""
     units = units_for_document(text)
     if not units:
         return []
@@ -107,6 +119,9 @@ def chunk_document_text(text: str) -> list[str]:
 
 
 def chunk_entry(entry: dict, raw_dir: Path) -> list[dict] | None:
+    """Read one cached source and attach finding tags, citation fields and chunk positions
+    Return None for a missing file so it can be reported separately from an empty document
+    """
     slug = slugify(entry["title"])
     raw_path = raw_dir / f"{slug}.txt"
     if not raw_path.exists():
@@ -130,6 +145,7 @@ def chunk_entry(entry: dict, raw_dir: Path) -> list[dict] | None:
 
 
 def chunk_manifest(manifest: list[dict], raw_dir: Path) -> tuple[list[dict], list[str]]:
+    """Collect chunks for available manifest sources and return the titles of missing files"""
     all_chunks: list[dict] = []
     missing: list[str] = []
 
@@ -144,7 +160,7 @@ def chunk_manifest(manifest: list[dict], raw_dir: Path) -> tuple[list[dict], lis
 
 
 if __name__ == "__main__":
-    # Check chunking with the files in data/raw/.
+    # Check chunking with the files in data/raw/
     import json
 
     manifest_path = Path(__file__).parent / "manifest.json"

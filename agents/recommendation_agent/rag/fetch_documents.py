@@ -1,4 +1,6 @@
-# Fetch the pages in manifest.json and save their text locally
+# Offline RAG preparation: download the sources listed in manifest.json as plain text
+# HTML extraction is tried first, with a PDF fallback for supported NCBI pages
+# Cached text avoids repeated downloads and failed entries are listed for manual collection
 
 import json
 import re
@@ -23,11 +25,13 @@ PDF_MAGIC_BYTES = b"%PDF-"
 
 
 def slugify(title: str) -> str:
+    """Match the chunker filename convention using a lowercase title slug capped at 60 characters"""
     slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")
     return slug[:60]
 
 
 def is_pmc_or_ncbi_books(url: str) -> bool:
+    """Identify the NCBI URL forms for which PDF fallback is attempted"""
     return (
         "ncbi.nlm.nih.gov/pmc/articles/" in url
         or "pmc.ncbi.nlm.nih.gov/articles/" in url
@@ -36,6 +40,7 @@ def is_pmc_or_ncbi_books(url: str) -> bool:
 
 
 def canonical_pmc_pdf_guess(url: str) -> str | None:
+    """Build the standard PMC PDF URL from an article identifier, excluding NCBI Books"""
     if "ncbi.nlm.nih.gov/books" in url:
         return None
     match = PMC_ID_PATTERN.search(url)
@@ -45,6 +50,7 @@ def canonical_pmc_pdf_guess(url: str) -> str | None:
 
 
 def find_real_pdf_link(article_html: str, article_url: str) -> str | None:
+    """Resolve the first matching PDF link against the article URL"""
     match = PDF_HREF_PATTERN.search(article_html)
     if not match:
         return None
@@ -52,11 +58,15 @@ def find_real_pdf_link(article_html: str, article_url: str) -> str | None:
 
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Read PDF bytes in memory and join extracted page text with paragraph breaks"""
     reader = PdfReader(BytesIO(pdf_bytes))
     return "\n\n".join(page.extract_text() or "" for page in reader.pages)
 
 
 def try_pdf_fallback(entry: dict, article_html: str) -> str | None:
+    """Try a linked PDF before the guessed PMC endpoint
+    Reject non-PDF responses and accept extracted text only when it reaches 200 characters
+    """
     url = entry["url"]
     candidates = []
 
@@ -77,6 +87,7 @@ def try_pdf_fallback(entry: dict, article_html: str) -> str | None:
             print(f"  [retry-fail] {pdf_url} - {e}")
             continue
 
+        # A successful HTTP response can still be an HTML landing page rather than a PDF
         if not pdf_response.content.startswith(PDF_MAGIC_BYTES):
             print(f"  [retry-fail] {pdf_url} - response wasn't a real PDF (likely a landing/redirect page)")
             continue
@@ -90,6 +101,9 @@ def try_pdf_fallback(entry: dict, article_html: str) -> str | None:
 
 
 def fetch_one(entry: dict) -> str:
+    """Reuse a cached text file or fetch and extract one manifest source
+    Return a status so the batch can continue when an individual source fails
+    """
     slug = slugify(entry["title"])
     out_path = RAW_DIR / f"{slug}.txt"
     if out_path.exists():
@@ -101,7 +115,7 @@ def fetch_one(entry: dict) -> str:
         response.raise_for_status()
         text = trafilatura.extract(response.text)
 
-        # Try the PDF if the page has too little text.
+        # Try the PDF if the page has too little text
         if (not text or len(text) < 200) and is_pmc_or_ncbi_books(entry["url"]):
             text = try_pdf_fallback(entry, response.text)
 
@@ -125,6 +139,7 @@ def fetch_one(entry: dict) -> str:
 
 
 def main():
+    """Fetch manifest entries with a delay and list failed sources for manual collection"""
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
 

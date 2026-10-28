@@ -1,5 +1,5 @@
-# Trusted source domains used to filter web search results
-
+# Explicit source allowlist used to check every web search result
+# A matching domain or subdomain and an HTTP or HTTPS scheme are both required
 
 from urllib.parse import urlparse
 
@@ -26,7 +26,9 @@ ALLOWED_SCHEMES = {"http", "https"}  # citations become links in the UI; javascr
 
 
 def is_trusted_domain(url: str) -> bool:
-    """Check whether the URL is http(s) on a trusted domain or one of its subdomains."""
+    """Accept HTTP or HTTPS URLs whose hostname matches an allowed domain or subdomain
+    Hostname parsing excludes credentials and ports, while the dot boundary rejects lookalike domains
+    """
     try:
         parsed = urlparse(url.strip())
         host = parsed.hostname  # drops user:pass@ and :port, lowercases
@@ -36,7 +38,7 @@ def is_trusted_domain(url: str) -> bool:
         return False
     host = host.rstrip(".")  # "nhs.uk." is the same host as "nhs.uk"
 
-    # Treat "www.example.com" the same as "example.com".
+    # Treat "www.example.com" the same as "example.com"
     host = host.removeprefix("www.")
 
     return any(

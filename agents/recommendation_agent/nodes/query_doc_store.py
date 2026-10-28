@@ -1,4 +1,5 @@
-# Retrieve local document chunks for the current finding
+# Retrieve evidence from the local RAG index and select a mix of source documents
+# A larger candidate pool allows source diversity without changing the retrieval ranking
 
 from typing import Callable
 
@@ -6,12 +7,14 @@ from ..rag.retrieval import retrieve
 from ..state import RecommendationState, RetrievedChunk
 
 DEFAULT_K = 3
-CANDIDATE_POOL = 12  # Retrieve extra chunks to allow a mix of sources.
+CANDIDATE_POOL = 12  # Retrieve extra chunks to allow a mix of sources
 MAX_CHUNKS_PER_SOURCE = 1
 
 
 def _diversify(results: list[RetrievedChunk], k: int, max_per_source: int) -> list[RetrievedChunk]:
-    """Pick varied sources first, then fill any remaining slots with the best chunks."""
+    """Scan score-ordered candidates while limiting how many come from each exact source URL
+    If distinct sources cannot fill k slots, append the highest-ranked remaining chunks
+    """
     chosen: list[RetrievedChunk] = []
     per_source: dict[str, int] = {}
     for chunk in results:
@@ -21,6 +24,7 @@ def _diversify(results: list[RetrievedChunk], k: int, max_per_source: int) -> li
             per_source[url] = per_source.get(url, 0) + 1
         if len(chosen) == k:
             return chosen
+    # Backfilling preserves useful evidence when too few distinct sources are available
     for chunk in results:  # backfill with the best chunks not already chosen
         if len(chosen) == k:
             break
@@ -33,7 +37,9 @@ def query_doc_store(
     state: RecommendationState,
     retrieve_fn: Callable = retrieve,
 ) -> RecommendationState:
-    """Retrieve chunks for the query and keep a mix of sources."""
+    """Search with an explicit question or a finding-based default, then diversify the candidates
+    Store the selected chunks in a copy of state for synthesis and later routing decisions
+    """
     query = state.get("user_query") or f"{state['finding']} treatment"
     candidates = retrieve_fn(query, k=CANDIDATE_POOL, finding=state.get("finding"))
     results = _diversify(candidates, DEFAULT_K, MAX_CHUNKS_PER_SOURCE)

@@ -1,4 +1,6 @@
-# Build a local search index from the fetched document chunks
+# Offline RAG preparation: embed document chunks and save the local search index
+# Embedding row i and metadata entry i describe the same chunk and must stay in the same order
+# The index and query use the same model and normalized vectors for cosine similarity
 
 import json
 import time
@@ -20,12 +22,16 @@ BATCH_SIZE = 32
 
 
 def collect_chunks() -> tuple[list[dict], list[str]]:
+    """Load source metadata from the manifest and split every available raw document"""
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     return chunk_manifest(manifest, RAW_DIR)
 
 
 def embed_texts(model: SentenceTransformer, texts: list[str]) -> np.ndarray:
     # Normalize the vectors so retrieval can use dot products for cosine similarity
+    """Encode chunks in batches and normalize each vector to unit length
+    Store float32 values to reduce the size of the NumPy index
+    """
     embeddings = model.encode(
         texts,
         batch_size=BATCH_SIZE,
@@ -37,12 +43,14 @@ def embed_texts(model: SentenceTransformer, texts: list[str]) -> np.ndarray:
 
 
 def save_index(embeddings: np.ndarray, chunk_metadata: list[dict]) -> None:
+    """Persist vectors and metadata in matching order for later retrieval"""
     INDEX_DIR.mkdir(parents=True, exist_ok=True)
     np.save(EMBEDDINGS_PATH, embeddings)
     METADATA_PATH.write_text(json.dumps(chunk_metadata, indent=2), encoding="utf-8")
 
 
 def main():
+    """Build the offline index, reporting missing sources and elapsed embedding time"""
     print("Chunking documents...")
     chunks, missing = collect_chunks()
 

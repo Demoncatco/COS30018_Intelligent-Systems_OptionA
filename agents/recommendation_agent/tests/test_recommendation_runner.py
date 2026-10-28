@@ -1,7 +1,9 @@
-# Tests the Coordinator <-> Recommendation Agent adapter (runner.py) with fake model, retrieval and search.
-# No Ollama, embedding model, index or Tavily key needed.
+# Offline checks for the Coordinator adapter and recommendation workflow
+# Fake model, retrieval and search functions make routing and outputs predictable
+# Mock HTTP responses also verify shared-client usage accounting without a running model
 
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -33,11 +35,15 @@ SYNTHESIS = "Rest and physiotherapy may indicate a good path (Fake doc). Please 
 
 
 def settings(tmp_path, **overrides) -> Settings:
-    return Settings(_env_file=None, log_dir=str(tmp_path), llm_http_retries=0, **overrides)
+    """Use isolated settings and the pytest temporary directory, with HTTP retries disabled"""
+    # Pydantic accepts this runtime option, but its generated field signature omits it
+    env_options: dict[str, Any] = {"_env_file": None}
+    return Settings(**env_options, log_dir=str(tmp_path), llm_http_retries=0, **overrides)
 
 
 def request(positives=None, confidence=0.85, task_type="initial", symptoms="", impression="",
             patient=None) -> CoordinatorRequest:
+    """Build a complete score mapping and attach the context needed by each test"""
     return CoordinatorRequest(
         finding={name: 0.05 for name in FINDINGS} | (positives or {}), confidence=confidence,
         task_type=task_type, impression=impression,
@@ -45,13 +51,15 @@ def request(positives=None, confidence=0.85, task_type="initial", symptoms="", i
 
 
 class FakeLLM:
-    """Decides from the prompt (look up once, then synthesise) and records every call."""
+    """Choose a local lookup before synthesis and record calls and synthesis prompts"""
 
     def __init__(self) -> None:
+        """Keep separate histories for action calls and generated-answer prompts"""
         self.calls: list[str] = []
         self.synthesis_prompts: list[str] = []
 
     def __call__(self, prompt, system=None):
+        """Use prompt history text to return predictable decisions without an external model"""
         if system and "decision step" in system:
             self.calls.append("decide")
             if "Actions already taken: none" in prompt:
@@ -63,21 +71,25 @@ class FakeLLM:
 
 
 def fake_retrieve(query, k=3, finding=None):
+    """Return one tagged source chunk so evidence, citations and query forwarding can be checked"""
     name = finding or "general"
     return [{"source_title": f"{name} doc", "source_url": f"https://www.nhs.uk/{name.replace(' ', '-')}",
              "findings": [name], "text": f"{name} is usually managed with rest and physiotherapy.", "score": 0.8}]
 
 
 def no_results(*args, **kwargs):
+    """Simulate an empty retrieval or search result without raising an error"""
     return []
 
 
 def fake_search(query, max_results):
+    """Provide a trusted web source to exercise conversion and web-grounding labels"""
     return [{"url": "https://www.healthline.com/page", "title": "Trusted page", "content": "See a clinician.",
              "score": 0.7}]
 
 
 def agent(tmp_path, retrieve=fake_retrieve, search=no_results, llm=None, **kwargs) -> RecommendationAgent:
+    """Create the real adapter with fake services and optional per-test overrides"""
     return RecommendationAgent(settings=settings(tmp_path), retrieve_fn=retrieve, search_fn=search,
                                llm_fn=llm or FakeLLM(), **kwargs)
 
@@ -155,7 +167,7 @@ def test_second_review_in_a_session_reuses_the_sources(tmp_path):
 
 
 def test_graph_searches_before_writing_a_no_sources_answer(tmp_path):
-    # Even if the model jumps straight to synthesize, both lookups are tried first.
+    # Even if the model jumps straight to synthesize, both lookups are tried first
     def eager(prompt, system=None):
         return '{"action": "synthesize"}' if system and "decision step" in system else SYNTHESIS
     searched = []

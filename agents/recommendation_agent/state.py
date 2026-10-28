@@ -1,9 +1,11 @@
-# State shared by the recommendation graph nodes
+# Data passed between nodes during one finding
+# TypedDict describes the expected keys for type checking, without adding runtime validation
 
 from typing import Required, TypedDict
 
 
 class RetrievedChunk(TypedDict):
+    """Common evidence fields consumed by synthesis for both local chunks and web results"""
     source_title: str
     source_url: str
     findings: list[str]
@@ -12,11 +14,12 @@ class RetrievedChunk(TypedDict):
 
 
 class RecommendationState(TypedDict, total=False):
-    # The finding is required; other fields are filled in as the graph runs.
+    # The finding is required; other fields are filled in as the graph runs
+    """Require the finding as input and allow other keys to be added as nodes complete"""
     finding: Required[str]
     user_query: str
 
-    # Context from the Coordinator, shown to the model in synthesize only (never used as instructions)
+    # Coordinator context is labelled as data in the synthesis prompt, not as model instructions
     impression: str           # the Diagnostic Agent's plain-language initial impression
     patient_context: str      # age, sex, symptoms and injury mechanism, as one labelled line
 
@@ -37,6 +40,6 @@ class RecommendationState(TypedDict, total=False):
     web_results: list[RetrievedChunk]
     web_results_filtered_count: int
 
-    # Written by synthesize / disclaimer_check
+    # Written by synthesize, including its disclaimer check
     recommendation: str
     disclaimer_added: bool

@@ -1,5 +1,6 @@
-# Search the local index created by build_index.py
-
+# Search the local RAG index using semantic similarity rather than exact keyword matches
+# The index and embedding model are loaded on demand and reused within the process
+# Optional finding tags restrict which sources are considered before ranking
 
 from __future__ import annotations
 
@@ -25,10 +26,11 @@ _metadata: list[dict] | None = None
 
 
 class IndexNotBuiltError(RuntimeError):
-    """The local index is missing; run build_index.py first."""
+    """Signal that the saved vectors or metadata are missing"""
 
 
 def _load_index() -> tuple[np.ndarray, list[dict]]:
+    """Cache the saved index in memory and verify vector rows match the metadata count"""
     global _embeddings, _metadata
     if _embeddings is None or _metadata is None:
         if not EMBEDDINGS_PATH.exists() or not METADATA_PATH.exists():
@@ -48,6 +50,7 @@ def _load_index() -> tuple[np.ndarray, list[dict]]:
 
 
 def _load_model() -> SentenceTransformer:
+    """Import and load the embedding model only when a query needs encoding"""
     global _model
     if _model is None:
         from sentence_transformers import SentenceTransformer
@@ -57,9 +60,9 @@ def _load_model() -> SentenceTransformer:
 
 
 def retrieve(query: str, k: int = 3, finding: str | None = None) -> list[dict]:
-    """Return the most similar chunks, highest score first.
-    
-    If a finding is supplied, search only chunks tagged with that finding."""
+    """Encode the query, filter by finding if supplied and rank candidates by cosine similarity
+    Return up to k metadata copies with scores, ordered from highest similarity to lowest
+    """
     embeddings, metadata = _load_index()
     model = _load_model()
 
@@ -78,6 +81,7 @@ def retrieve(query: str, k: int = 3, finding: str | None = None) -> list[dict]:
     scores = candidate_embeddings @ query_vec
 
     top_k = min(k, len(candidate_idx))
+    # Indices here are relative to the filtered candidates, not the complete metadata list
     top_local = np.argsort(scores)[::-1][:top_k]
 
     results = []
@@ -90,6 +94,7 @@ def retrieve(query: str, k: int = 3, finding: str | None = None) -> list[dict]:
 
 
 def _print_results(query: str, results: list[dict]) -> None:
+    """Print ranked source details and short text previews for command-line inspection"""
     print(f'\nTop {len(results)} results for: "{query}"\n')
     for rank, r in enumerate(results, start=1):
         print(f"{rank}. [{r['score']:.3f}] {r['source_title']}  ({', '.join(r['findings'])})")

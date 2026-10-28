@@ -1,4 +1,6 @@
-# Example findings and questions for running the recommendation graph
+# Named examples for the graph command-line runner
+# Plain findings use the default query; user_query examples test explicit patient questions
+# Unknown findings and unrelated questions exercise limited-evidence paths
 
 STUB_INPUTS = [
     # Basic examples
@@ -54,9 +56,9 @@ STUB_INPUTS = [
     },
 
     # Edge cases
-    # No local sources: try web search or use the no-sources response.
+    # No local sources: try web search or use the no-sources response
     {"name": "unknown_finding", "finding": "Osteochondritis Dissecans"},
-    # An off-topic question attached to a real finding.
+    # An off-topic question attached to a real finding
     {
         "name": "off_topic_question",
         "finding": "ACL",
