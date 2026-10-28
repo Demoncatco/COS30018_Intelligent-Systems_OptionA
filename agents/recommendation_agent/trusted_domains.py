@@ -22,18 +22,22 @@ TRUSTED_DOMAINS = {
 }
 
 
+ALLOWED_SCHEMES = {"http", "https"}  # citations become links in the UI; javascript:, file:, data: etc. are refused
+
+
 def is_trusted_domain(url: str) -> bool:
-    """Check whether the URL belongs to a trusted domain or one of its subdomains."""
+    """Check whether the URL is http(s) on a trusted domain or one of its subdomains."""
     try:
-        host = urlparse(url).netloc.lower()
-    except ValueError:
+        parsed = urlparse(url.strip())
+        host = parsed.hostname  # drops user:pass@ and :port, lowercases
+    except (ValueError, AttributeError):
         return False
-    if not host:
+    if parsed.scheme.lower() not in ALLOWED_SCHEMES or not host:
         return False
+    host = host.rstrip(".")  # "nhs.uk." is the same host as "nhs.uk"
 
     # Treat "www.example.com" the same as "example.com".
-    if host.startswith("www."):
-        host = host[4:]
+    host = host.removeprefix("www.")
 
     return any(
         host == domain or host.endswith(f".{domain}")

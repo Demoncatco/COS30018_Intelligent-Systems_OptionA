@@ -1,7 +1,8 @@
 # Search Tavily and keep results from trusted domains
 
+import inspect
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from shared.config import get_settings
 
@@ -12,6 +13,7 @@ logger = logging.getLogger("recommendation_agent.web_search")
 
 DEFAULT_MAX_RESULTS = 5
 MAX_WEB_CONTENT_CHARS = 1000  # Limit snippet length for the model.
+WEB_SEARCH_TIMEOUT_S = 20  # one search must not use up the whole TOOL_TIMEOUT_S budget
 
 
 def _tavily_search(query: str, max_results: int) -> list[dict]:
@@ -24,11 +26,10 @@ def _tavily_search(query: str, max_results: int) -> list[dict]:
         raise RuntimeError("TAVILY_API_KEY is not set in .env, so web search is unavailable")
     client = TavilyClient(api_key=settings.tavily_api_key.get_secret_value())
     # Limit the search to trusted sites, then check each result below.
-    response = client.search(
-        query=query,
-        max_results=max_results,
-        include_domains=sorted(TRUSTED_DOMAINS),
-    )
+    kwargs = {"query": query, "max_results": max_results, "include_domains": sorted(TRUSTED_DOMAINS)}
+    if "timeout" in inspect.signature(client.search).parameters:  # older tavily-python has no timeout
+        kwargs["timeout"] = max(1, int(min(WEB_SEARCH_TIMEOUT_S, settings.tool_timeout_s)))
+    response = client.search(**kwargs)
     return response.get("results", [])
 
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from agents.coordinator.guardrails import RunContext, open_recheck_requests
+from agents.recommendation_agent.trusted_domains import is_trusted_domain
 from shared.schema import (
     DISCLAIMER,
     DiagnosticDecision,
@@ -17,6 +18,12 @@ NO_EVIDENCE_TEXT = (
     "No credible source could be found for these findings, so no recommendation is given. "
     "Please discuss the findings with a qualified clinician."
 )
+
+
+def split_citations(urls: list[str]) -> tuple[list[str], list[str]]:
+    # (kept, dropped): only http(s) links on the allowlist reach the report, once each.
+    kept = [u for u in dict.fromkeys(urls) if is_trusted_domain(u)]
+    return kept, [u for u in urls if u not in kept]
 
 
 def decide_status(ctx: RunContext) -> SessionStatus:
@@ -65,17 +72,20 @@ def build_final_report(ctx: RunContext, *, llm_summary: str = "", llm_unresolved
                     low_confidence=(result.per_finding_confidence[name] < settings.low_confidence_threshold
                                     or name in disputed)))
 
-    recommendation_text, citations = "", []
+    recommendation_text, citations, dropped = "", [], []
     if review is not None and status != SessionStatus.INCONCLUSIVE:
         if review.evidence_status == EvidenceStatus.NO_CREDIBLE_SOURCE_FOUND:
             recommendation_text = NO_EVIDENCE_TEXT  # show the gap, never invent
         else:
-            recommendation_text, citations = review.recommendation_text, list(review.citations)
+            recommendation_text = review.recommendation_text
+            citations, dropped = split_citations(review.citations)  # second allowlist check before the UI
 
     path = " -> ".join(decision_path or [])
     summary = (f"Diagnostic runs: {len(state.diagnostic_results)} ({state.recheck_rounds} recheck round(s)); "
                f"senior reviews: {len(state.recommendation_results)}; errors: {len(state.errors)}."
                + (f" Path: {path}." if path else ""))
+    if dropped:
+        summary += f" Dropped {len(dropped)} citation(s) outside the trusted-domain allowlist."
     if llm_summary.strip():
         summary += f" Coordinator note: {llm_summary.strip()}"
 
