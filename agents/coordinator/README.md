@@ -13,6 +13,7 @@ Recommendation Agent (senior doctor), resolves their disagreements and assembles
 | `report.py` | Builds the `FinalReport`: status, findings, disagreements, fixed disclaimer |
 | `prompts.py` | System prompt and messages for the LLM |
 | `runners.py` | The call signatures the other agents must match, tool timeouts, interim Model Service adapter |
+| `wiring.py` | Picks the real or interim Diagnostic Agent (`DIAGNOSTIC_IMPL`) and the Recommendation Agent |
 | `fakes.py` | Scripted Diagnostic/Recommendation stand-ins for tests and validation |
 | `__main__.py` | Smoke run: `python -m agents.coordinator --study-id <id>` |
 
@@ -53,28 +54,32 @@ listed in `FinalReport.disagreements`.
 
 ## Plugging in the real agents
 
-The Coordinator only needs two callables (see `runners.py`):
+`wiring.py` builds both agents for the CLI and the backend. The Recommendation Agent is already the real one.
+For the Diagnostic Agent, `agents/diagnostic_agent/agent.py` must define:
 
 ```python
-def diagnostic(request: DiagnosticAgentRequest, *, session_id: str) -> DiagnosticAgentResponse: ...
-def recommendation(request: CoordinatorRequest, *, session_id: str) -> RecommendationResponse: ...
+class DiagnosticAgent:
+    def __init__(self, llm: LLMClient, settings: Settings) -> None: ...   # use llm.decide("diagnostic", ...)
+    def __call__(self, request: DiagnosticAgentRequest, *, session_id: str) -> DiagnosticAgentResponse: ...
 ```
 
-Raise any exception on failure. Then:
+Raise any exception on failure, return a result for `request.study_id` only, and pass `session_id` to every
+`llm` call so its tokens show up in the session. With `DIAGNOSTIC_IMPL=auto` (default) it is picked up
+automatically; until then the interim `ModelServiceDiagnostic` runs. `GET /health` on the backend and the CLI's
+first line say which one is live.
+
+Using the Coordinator directly:
 
 ```python
 from agents.coordinator import CoordinatorAgent
+from agents.coordinator.wiring import build_runners
 from shared.llm import LLMClient
 
-coordinator = CoordinatorAgent(diagnostic=run_diagnostic_agent, recommendation=run_recommendation_agent,
-                               llm=LLMClient(), on_event=push_to_ui)
+llm = LLMClient()
+runners = build_runners(llm.settings, llm)
+coordinator = CoordinatorAgent(runners.diagnostic, runners.recommendation, llm=llm, on_event=push_to_ui)
 result = coordinator.run(study_id, patient_metadata)   # or run_session(state) to poll a SessionState
-result.report, result.stats.to_dict(), result.override_rate
 ```
-
-`python -m agents.coordinator --study-id <id>` uses the real Recommendation Agent
-(`agents.recommendation_agent.runner.RecommendationAgent`) and, until the Diagnostic Agent is merged, the interim
-`ModelServiceDiagnostic` (Model Service `/predict`, no LLM).
 
 ## Validation (20 scenarios)
 

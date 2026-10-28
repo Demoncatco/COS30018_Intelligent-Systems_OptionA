@@ -11,6 +11,7 @@ evidence-backed recommendations.
 
 ## Contents
 
+- [Quick start](#quick-start)
 1. [How the system works](#1-how-the-system-works)
 2. [Team and ownership](#2-team-and-ownership)
 3. [Common language (read this first)](#3-common-language-read-this-first)
@@ -23,7 +24,33 @@ evidence-backed recommendations.
 10. [Configuration and secrets](#10-configuration-and-secrets)
 11. [Testing](#11-testing)
 12. [Logging and traces](#12-logging-and-traces)
-13. [Open items in the shared contract](#13-open-items-in-the-shared-contract)
+13. [Sandboxing, timeouts and safety](#13-sandboxing-timeouts-and-safety)
+14. [Open items in the shared contract](#14-open-items-in-the-shared-contract)
+
+---
+
+## Quick start
+
+```bash
+pip install -r requirements.txt && cp .env.example .env     # Windows: copy .env.example .env
+uvicorn model_service.api.main:app --port 8001              # terminal 1: Model Service (stub scores)
+uvicorn backend.main:app --port 8000                        # terminal 2: backend
+```
+
+Open <http://localhost:8000/docs> and try `POST /sessions` with `{"study_id": "test123"}`, or run the tests with
+`pytest` (no Ollama, GPU or dataset needed). For real agent runs, start Ollama and pull the models (section 7.3).
+
+**Where things stand**
+
+| Part | State |
+|---|---|
+| Model Service (stub, replay, live) and training code | Working; replay and live need a trained checkpoint (section 9) |
+| Coordinator Agent (Qwen) | Working, validated on 20 scenarios |
+| Recommendation Agent (Qwen, local docs + web) | Working |
+| Diagnostic Agent (MedGemma) | Report extractor working (`findings.csv`); the agent itself (`agent.py`) pending. Until then the backend uses the interim Model Service adapter automatically |
+| FastAPI backend, baseline, live trace | Working (section 8.3) |
+| Logging, traces, sandboxing, timeouts, CI | Working (sections 11–13) |
+| React frontend, 30+ case evaluation | Pending |
 
 ---
 
@@ -63,13 +90,13 @@ is enforced by deterministic guardrails rather than left to the Coordinator's ju
 
 | Member | Owns |
 |---|---|
-| **Ren** | Coordinator Agent, FastAPI backend, baseline, shared config/logging/secrets · detection model architecture and training |
-| **Justin** | Evaluation Agent, Agent training and evaluation, data visualisation, Evaluation model testing  |
-| **Christina** | Role placeholder |
-| **Harsh** | Role placeholder |
-| **Xavier** | Role placeholder |
+| **Ren** | Coordinator Agent, FastAPI backend, baseline, integration, shared config/logging/secrets, engineering requirements (tests, sandboxing, CI) · detection model architecture and training |
+| **Justin** | Diagnostic Agent (MedGemma), report findings extractor, agent evaluation and data visualisation |
+| **Christina** | Recommendation Agent (Qwen): local document store, web search, synthesis |
+| **Harsh** | DICOM and data research, evaluation test cases |
+| **Xavier** | Recommendation Agent support, frontend preparation |
 
-> Update this table.
+> Each member: correct your own row if it is out of date.
 
 ---
 
@@ -289,9 +316,20 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 .
 ├── agents/
 │   ├── coordinator/             ✅ Coordinator Agent (Ren), see agents/coordinator/README.md
-│   ├── diagnostic_agent/        ⬜ Diagnostic Agent (Justin)
+│   │   └── wiring.py            ✅ picks the real or interim Diagnostic Agent (DIAGNOSTIC_IMPL)
+│   ├── diagnostic_agent/        🟡 Diagnostic Agent (Justin)
+│   │   ├── extract_knee_findings.py ✅ radiology report → per-finding labels via LLM
+│   │   ├── findings.csv         ✅ extracted findings (StudyInstanceUID, Abnormality, Severity)
+│   │   ├── findings_errors.csv  studies the extractor could not parse
+│   │   └── agent.py             ⬜ DiagnosticAgent class (contract in agents/coordinator/README.md)
 │   └── recommendation_agent/    ✅ LangGraph RAG loop + Coordinator adapter (Christina), see agents/recommendation_agent/README.md
-├── backend/                     ⬜ FastAPI backend: sessions, event stream, baseline (Ren) — planned location
+├── backend/                     ✅ FastAPI backend: sessions, SSE trace, baseline, health (Ren)
+│   ├── main.py                  ✅ endpoints (section 8.3)
+│   ├── sessions.py              ✅ worker threads, per-session usage, save/reload from logs/
+│   ├── baseline.py              ✅ single MedGemma call, same FinalReport
+│   ├── traces.py                ✅ list / show / check / export session traces
+│   └── tests/                   ✅ API tests + shared fakes (no servers needed)
+├── tests/                       ✅ engineering requirements: disclaimer, sandboxing, timeouts, logging
 ├── evaluation/
 │   ├── run_eval.py              ⬜ evaluation runner (30+ cases, multi-agent vs baseline)
 │   ├── coordinator_scenarios.py ✅ 20 Coordinator validation scenarios
@@ -323,8 +361,10 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   ├── schema.py                ✅ all contracts and shared vocabulary
 │   ├── config.py                ✅ typed, validated settings from .env (pinned tags, secrets redacted)
 │   ├── llm.py                   ✅ Ollama client (Qwen tool calls, MedGemma JSON, usage logging, health check)
-│   ├── logging_setup.py         ✅ JSON logs + per-session trace files
+│   ├── logging_setup.py         ✅ JSON logs (rotated, secrets redacted) + per-session trace files
 │   └── tests/                   ✅
+├── .github/workflows/ci.yml     ✅ lint + tests on every push
+├── ruff.toml                    ✅ lint rules
 ├── .env.example                 ✅ copy to .env
 ├── requirements.txt             ✅
 └── README.md
@@ -344,7 +384,7 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 ### 7.2 Set up the project
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Demoncatco/COS30018_Intelligent-Systems_OptionA.git
 cd COS30018_Intelligent-Systems_OptionA
 
 python -m venv .venv
@@ -435,7 +475,8 @@ Live mode reads the input size from the checkpoint, so it always matches trainin
 ### 8.2 Coordinator Agent
 
 Smoke run against the running Model Service. The Recommendation Agent is the real one (needs Ollama and the
-local index); the Diagnostic Agent is still the interim Model Service adapter:
+local index); the Diagnostic Agent is chosen by `DIAGNOSTIC_IMPL` (the interim Model Service adapter until
+`agents/diagnostic_agent/agent.py` defines `DiagnosticAgent`). The first line printed says which is in use:
 
 ```bash
 python -m agents.coordinator --study-id <study_id>                 # Qwen
@@ -452,21 +493,54 @@ python -m evaluation.coordinator_validation --compare --repeats 3  # Qwen vs Med
 
 It reports valid-call rate, correct-decision rate, override rate and latency.
 
-### 8.3 Backend ⬜
+### 8.3 Backend
 
-Planned: `uvicorn backend.main:app --port 8000` with these endpoints:
+```bash
+uvicorn model_service.api.main:app --port 8001   # terminal 1
+uvicorn backend.main:app --port 8000             # terminal 2 (needs Ollama for the LLM agents)
+```
+
+Interactive docs: <http://localhost:8000/docs>. Sessions run in worker threads (`BACKEND_MAX_WORKERS`, default 2);
+extra ones wait as `pending`.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /sessions` | Start a run for a `study_id` (+ optional `PatientMetadata`) |
-| `GET /sessions/{id}` | Session status and `FinalReport` |
-| event stream | Live `AgentEvent`s for the UI trace |
-| `POST /baseline` | Same input through the single-call baseline |
-| `GET /health` | Model Service, Ollama and model availability |
+| `POST /sessions` | Start a multi-agent run. Body: `{"study_id", "patient_metadata"?, "driver"?: "tools" \| "json" \| "fixed"}`. Returns `202` + `SessionDetail` (`200` if `?wait_s=` was long enough for it to finish) |
+| `POST /baseline` | Same body, single MedGemma call (section 1). Same `SessionDetail` / `FinalReport` shape |
+| `GET /sessions` | Recent sessions, newest first |
+| `GET /sessions/{id}` | Status, `final_report` (once finished), errors, per-agent `usage`, Coordinator `stats`; `?include_events=true` adds the trace |
+| `GET /sessions/{id}/report` | Just the `FinalReport` (`409` until finished) |
+| `GET /sessions/{id}/stream` | Live trace as Server-Sent Events: one `agent_event` per `AgentEvent` (`id` = `seq`), then one `end` event with the final status. Honours `Last-Event-ID` on reconnect |
+| `GET /sessions/{id}/events?after=<seq>` | Same events for polling, if SSE is awkward |
+| `GET /studies` | Study IDs the Model Service can score (proxied) |
+| `GET /health` | Agent wiring (real or interim Diagnostic), Model Service, Ollama and model availability. `status` is `ok` or `degraded`; `?deep=false` skips the checks |
+
+Frontend sketch:
+
+```js
+const res = await fetch("http://localhost:8000/sessions", {method: "POST", headers: {"Content-Type": "application/json"},
+  body: JSON.stringify({study_id, patient_metadata: {age: 34, symptoms: "twisting injury, swelling"}})});
+const {session_id} = await res.json();
+const es = new EventSource(`http://localhost:8000/sessions/${session_id}/stream`);
+es.addEventListener("agent_event", (e) => addTraceLine(JSON.parse(e.data)));
+es.addEventListener("end", async () => { es.close(); showReport(await (await fetch(`http://localhost:8000/sessions/${session_id}/report`)).json()); });
+```
+
+Finished sessions are saved to `logs/reports/<session_id>.json` (trace in `logs/traces/`), so `GET /sessions/{id}`
+still works after a restart. `final_report.total_tokens` counts every agent's LLM calls in the session (Coordinator,
+Diagnostic, Recommendation), so it can be compared directly with the baseline.
+
+**Which agents run.** `agents/coordinator/wiring.py` builds them for both the backend and the CLI.
+`DIAGNOSTIC_IMPL=auto` uses `agents.diagnostic_agent.agent.DiagnosticAgent` once it exists, otherwise the interim
+Model Service adapter (no LLM); `GET /health` shows which one is live. If the Recommendation Agent cannot be
+imported, sessions still run and end `partial` with the reason in `errors`.
 
 ### 8.4 Frontend
 
-Currently a static prototype: open `index.html` in a browser. The React app in `frontend/` will replace it.
+Currently a static prototype: open `index.html` in a browser. The React app in `frontend/` will replace it and
+talk to the backend: `POST /sessions` to start, `GET /sessions/{id}/stream` for the live trace,
+`GET /sessions/{id}/report` for the result (example in section 8.3). Add the dev server's address to
+`BACKEND_CORS_ORIGINS` if it is not on port 5173 or 3000.
 
 ---
 
@@ -559,7 +633,12 @@ All settings are read by `shared/config.py` from environment variables or `.env`
 | `MAX_COORDINATOR_STEPS` | `12` | Hard stop for the Coordinator loop |
 | `REPORT_THRESHOLD` / `LOW_CONFIDENCE_THRESHOLD` | `0.5` / `0.6` | See section 3.3 |
 | `TAVILY_API_KEY` | — | Web search for the Recommendation Agent (secret). The `.env.example` placeholder counts as unset; check with `get_settings().has_tavily_key` |
+| `DIAGNOSTIC_IMPL` | `auto` | `auto`, `agent` (fail if the real Diagnostic Agent is missing) or `interim` |
+| `BACKEND_MAX_WORKERS` / `BACKEND_MAX_SESSIONS` | `2` / `200` | Sessions running at once / kept in memory |
+| `BACKEND_MAX_PENDING` | `20` | Sessions allowed to wait in the queue; beyond this `POST` returns `429` |
+| `BACKEND_CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated origins the React dev server runs on |
 | `LOG_LEVEL` / `LOG_DIR` | `INFO` / `logs` | Logging |
+| `LOG_MAX_BYTES` / `LOG_BACKUP_COUNT` | `10000000` / `5` | `logs/app.jsonl` rotation |
 
 ---
 
@@ -568,34 +647,111 @@ All settings are read by `shared/config.py` from environment variables or `.env`
 From the repo root:
 
 ```bash
-pytest                 # all tests
-pytest shared          # one area
-ruff check .           # lint
+pytest                 # all tests (about 340, under 15 s)
+pytest tests           # engineering requirements only: disclaimer, sandboxing, timeouts, logging
+pytest backend         # API, baseline, traces
+ruff check .           # lint (rules in ruff.toml)
 ```
 
-Tests must not need the Kaggle dataset, a GPU or a running Ollama server. Use the fakes in
-`model_service/tests/_fakes.py`, `httpx.MockTransport` for LLM calls (see `shared/tests/test_llm.py`),
-and stub mode for the Model Service.
+Tests must not need the Kaggle dataset, a GPU, a running Ollama server or an API key. Use the fakes in
+`model_service/tests/_fakes.py`, `agents/coordinator/fakes.py` (scripted agents), `backend/tests/fakes.py`
+(fake Ollama, Model Service and backend services) and `httpx.MockTransport` for HTTP. GitHub Actions
+(`.github/workflows/ci.yml`) runs lint and the full suite on every push and pull request.
 
-Every new module comes with tests. Covered so far: Coordinator branches (finalize, recheck, re-upload,
-failure), guardrails (step limit, recheck limit, junior/senior rule) and the disclaimer always being
-present (`agents/coordinator/tests/`). Still planned: API endpoints.
+| Requirement | Covered by |
+|---|---|
+| Coordinator branches (finalize, recheck, re-upload, failure, retries) | `agents/coordinator/tests/test_coordinator_agent.py`, `test_coordinator_validation.py` |
+| Guardrails (step limit, recheck limit, junior/senior rule, refusals) | `agents/coordinator/tests/test_coordinator_guardrails.py` |
+| API (every endpoint, SSE stream, 404/409/422/429, restart) | `backend/tests/test_api.py` |
+| Disclaimer on every report path (5 multi-agent outcomes, crash, 3 baseline outcomes, cannot be removed) | `tests/test_disclaimer.py` |
+| Sandboxing (URL allowlist, citation re-check, input limits, no LLM-chosen ids/paths, prompt-injection framing) | `tests/test_sandboxing.py` |
+| Tool timeouts (slow agents, hung Model Service, health check) | `tests/test_timeouts.py`, `shared/tests/test_llm.py` |
+| Logging (JSON lines, rotation, secret redaction, access log, valid trace per session) | `tests/test_logging.py` |
+| Agent wiring (real vs interim Diagnostic Agent) | `agents/coordinator/tests/test_wiring.py` |
+| Schema, config, LLM client | `shared/tests/` |
+| Model Service and training code | `model_service/tests/` (some need `torch`) |
 
 ---
 
 ## 12. Logging and traces
 
-- Call `setup_logging()` once at startup, then log `get_settings().safe_summary()` (all settings, secrets redacted)
-  so each run records which models and thresholds it used. Logs go to stdout and `logs/app.jsonl` as JSON lines.
-- Each session writes its `AgentEvent`s to `logs/traces/<session_id>.jsonl` via `TraceWriter`. These
-  files are the execution traces submitted with the project and what the UI replays.
+| Where | What | Written by |
+|---|---|---|
+| stdout + `logs/app.jsonl` | One JSON object per line: time, level, logger, message, `session_id`, `agent`, `data`. Rotates at `LOG_MAX_BYTES`, keeps `LOG_BACKUP_COUNT` old files | `setup_logging()` |
+| `logs/traces/<session_id>.jsonl` | Every `AgentEvent` of one session, in `seq` order: decisions, tool calls and results (with `tokens_in`, `tokens_out`, `latency_ms`), errors, status changes. What the UI streams and what is submitted as execution traces | `TraceWriter` (Coordinator, baseline, backend) |
+| `logs/reports/<session_id>.json` | The finished `SessionState` (without events): `FinalReport`, per-agent token usage, Coordinator stats | Backend, at the end of each session |
+
+- Call `setup_logging()` once at startup, then log `get_settings().safe_summary()` (all settings, secrets
+  redacted) so each run records which models and thresholds it used. The backend does both.
+- Every LLM call is logged with its agent, session, tokens and latency (`shared/llm.py`), and the backend logs
+  one access line per HTTP request with an `X-Request-ID` (echoed in the response header).
+- The Tavily key is replaced by `***redacted***` in messages, structured `data` and exception text, so a
+  failing search cannot leak it into a log or a submission.
 - Include `tokens_in`, `tokens_out` and `latency_ms` on events that involve an LLM or tool call; the
   evaluation and report depend on them.
-- `logs/` is git-ignored. Copy the traces needed for the submission into `evaluation/` deliberately.
+
+Working with traces (`logs/` is git-ignored, so copy the ones you submit deliberately):
+
+```bash
+python -m backend.traces list                          # recent sessions: kind, status, tokens, latency
+python -m backend.traces show <session_id>             # timeline + integrity check
+python -m backend.traces check                         # check every saved session
+python -m backend.traces export <id> <id> --out evaluation/traces
+```
+
+`check` flags missing or duplicated events, events from another session, a session that never finished, a
+report whose status differs from the trace, and a missing disclaimer.
 
 ---
 
-## 13. Open items in the shared contract
+## 13. Sandboxing, timeouts and safety
+
+The agents run with only the access they need. Each rule below is enforced in code and covered by a test.
+
+**What tools can reach**
+
+| Tool | Can reach | Cannot |
+|---|---|---|
+| Diagnostic → Model Service | `MODEL_SERVICE_URL` `/predict` with the session's `study_id` | Choose the study, a URL or a file; the `study_id` is never an LLM tool argument |
+| Recommendation → local index | The ~64 documents in `rag/manifest.json` (all on the allowlist) | Anything else on disk |
+| Recommendation → web search | Tavily, restricted to `TRUSTED_DOMAINS` (`include_domains`), each result checked again | Fetch arbitrary URLs; results from other domains are dropped and counted |
+| Coordinator | The four tools in `agents/coordinator/tools.py`, each checked by `guardrails.check_call()` | Run code, read files, or call an agent outside the guardrails |
+
+**Allowlist.** `trusted_domains.is_trusted_domain()` only accepts `http`/`https` URLs whose real host (no
+`user@`, port or trailing dot tricks) is a trusted domain or a subdomain of one. It refuses `javascript:`,
+`file:` and `data:` links and lookalikes such as `nhs.uk.evil.com`. The Coordinator applies it a second time
+to every citation before the `FinalReport` (`report.split_citations`), so a link that bypassed the
+Recommendation Agent never reaches the UI; dropped links are noted in `coordination_summary`.
+
+**Untrusted text.** Web snippets are cut to 1000 characters and given to Qwen only as source excerpts. Patient
+symptoms are flattened to one labelled line for the Recommendation Agent and JSON-quoted, labelled as data,
+for the baseline, so instructions typed into the form are not followed.
+
+**Input limits (backend).** `study_id` must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` (DICOM UIDs and test
+ids, never a path); patient text is length-limited; session ids are checked before any file is read; at most
+`BACKEND_MAX_WORKERS` sessions run and `BACKEND_MAX_PENDING` wait, after which the API returns `429`.
+
+**Timeouts.** Nothing can block a session forever:
+
+| Call | Limit | On timeout |
+|---|---|---|
+| Coordinator → Diagnostic / Recommendation Agent | `TOOL_TIMEOUT_S` | Error event, one retry, then the Coordinator moves on (`failed` / `partial`) |
+| Any LLM call (Ollama) | `LLM_TIMEOUT_S` | `LLMError`; not retried; the Coordinator falls back to its fixed policy |
+| Model Service `/predict` (Diagnostic adapter, baseline) | `TOOL_TIMEOUT_S` | Failed tool call |
+| Tavily web search | 20 s (`WEB_SEARCH_TIMEOUT_S`, capped by `TOOL_TIMEOUT_S`) | Search error, recorded in the trace |
+| Health checks | 5 s | Reported as `unreachable` |
+| Coordinator loop | `MAX_COORDINATOR_STEPS`, `MAX_RECHECK_ROUNDS` | Forced finalise or re-upload |
+
+A timed-out agent call keeps running in its worker thread until it returns (Python cannot kill threads); its
+result is ignored.
+
+**Medical safety.** Every `FinalReport` carries the fixed `DISCLAIMER` (the schema re-adds it if anything
+removes it); recommendation text always contains "may indicate" wording and advice to consult a clinician;
+`no_credible_source_found` is shown as a gap, never filled with invented text.
+
+---
+
+## 14. Open items in the shared contract
 
 Known gaps to close; tick them off as PRs merge.
 
@@ -609,4 +765,11 @@ Known gaps to close; tick them off as PRs merge.
 - [ ] Confirm the weak-label CSV format with the weak labeller (`study_id` + the 12 `FINDINGS` columns; 1/0/-1/blank,
       see section 3.5). `labels.py` now enforces it.
 - [ ] Add per-plane scores to `DiagnosticAgentResponse` so `ReportedFinding.per_plane` can be filled in the
-      final report (currently empty).
+      multi-agent report (currently empty; the baseline already fills it from the Model Service).
+- [x] FastAPI backend, single-call baseline and agent wiring (section 8.3).
+- [ ] Diagnostic Agent: `agents/diagnostic_agent/agent.py` defines `DiagnosticAgent(llm, settings)`, callable as
+      `(DiagnosticAgentRequest, *, session_id) -> DiagnosticAgentResponse`. Picked up automatically; check with
+      `GET /health` (`"diagnostic": "agent"`).
+- [ ] React frontend connected to `/sessions`, `/stream` and `/report`.
+- [ ] Evaluation runner (`evaluation/run_eval.py`): 30+ cases through `POST /sessions` and `POST /baseline`
+      with `?wait_s=`, comparing status, findings, urgency, tokens and latency.
