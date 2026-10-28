@@ -384,7 +384,7 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 ### 7.2 Set up the project
 
 ```bash
-git clone https://github.com/Demoncatco/COS30018_Intelligent-Systems_OptionA.git
+git clone <repo-url>
 cd COS30018_Intelligent-Systems_OptionA
 
 python -m venv .venv
