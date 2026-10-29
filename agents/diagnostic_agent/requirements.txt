@@ -1,8 +1,0 @@
-numpy
-pandas
-scikit-learn
-pydicom
-torch
-torchvision
-requests
-tqdm

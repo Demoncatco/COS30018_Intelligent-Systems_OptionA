@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torchvision
 
-from config import ABNORMALITIES, PLANES
+from .config import ABNORMALITIES, PLANES
 
 
 class SliceEncoder(nn.Module):
