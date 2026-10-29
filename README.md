@@ -95,7 +95,7 @@ is enforced by deterministic guardrails rather than left to the Coordinator's ju
 | **Justin** | Diagnostic Agent (MedGemma), report findings extractor, agent evaluation and data visualisation |
 | **Christina** | Recommendation Agent (Qwen): local document store, web search, synthesis |
 | **Harsh** | DICOM and data research, evaluation test cases |
-| **Xavier** | Recommendation Agent support, frontend preparation |
+| **Xavier** | Full Data pipeline (manifest, DICOM Loader, series selection, preprocessing), Recommendation Agent support, report writing |
 
 > Each member: correct your own row if it is out of date.
 
