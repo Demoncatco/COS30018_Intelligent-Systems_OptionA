@@ -13,10 +13,13 @@ import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi import FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.models import (
     EventsPage,
@@ -26,9 +29,11 @@ from backend.models import (
     SessionSummary,
 )
 from backend.sessions import QueueFullError, Services, SessionEntry, SessionManager
+from backend.uploads import UploadStore
+from model_service.knee_model.upload import UploadError, UploadSummary, is_upload_id
 from shared.config import Settings, get_settings
 from shared.logging_setup import setup_logging
-from shared.schema import FinalReport
+from shared.schema import FINDINGS, PLANES, FinalReport
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +41,7 @@ MAX_WAIT_S = 900.0  # longest a client may block on ?wait_s=
 STREAM_POLL_S = 0.25  # how often the stream checks for new events
 STREAM_HEARTBEAT_S = 15.0  # keeps proxies from closing an idle stream
 REQUEST_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")  # client-supplied ids are only echoed if they look safe
+FRONTEND_DIST = Path(__file__).resolve().parents[1] / "frontend" / "dist"  # built React app, served at / when present
 
 
 def create_app(settings: Settings | None = None, services: Services | None = None,
@@ -50,6 +56,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         active = services or Services.build(settings)
         app.state.services = active
         app.state.manager = SessionManager(active)
+        app.state.uploads = UploadStore(active.settings)
         logger.info("agents wired", extra={"data": {"notes": active.runners.notes}})
         yield
         app.state.manager.shutdown()
@@ -122,10 +129,41 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         except Exception as error:  # noqa: BLE001
             raise HTTPException(status_code=502, detail=f"Model Service: {type(error).__name__}: {error}") from None
 
+    # --- Uploads ---
+
+    def uploads(request: Request) -> UploadStore:
+        return request.app.state.uploads
+
+    @app.post("/uploads", response_model=UploadSummary, status_code=201, summary="Upload one knee MRI study")
+    def create_upload(request: Request, files: Annotated[list[UploadFile], File(description=".dcm files or a .zip")]):
+        # Sync endpoint: FastAPI runs it in a worker thread, so unzipping and preprocessing do not block the stream.
+        try:
+            return uploads(request).ingest(files)
+        except UploadError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from None
+
+    @app.get("/uploads/{upload_id}", response_model=UploadSummary, summary="What was found in an upload")
+    def get_upload(request: Request, upload_id: str):
+        return uploads(request).summary(upload_id)
+
+    @app.get("/uploads/{upload_id}/slices/{plane}/{index}.png", summary="One preprocessed slice, as the model sees it")
+    def get_slice(request: Request, upload_id: str, plane: str, index: int):
+        if plane not in PLANES:
+            raise HTTPException(status_code=404, detail=f"unknown plane {plane!r}")
+        png = uploads(request).slice_png(upload_id, plane, index)
+        return Response(content=png, media_type="image/png", headers={"Cache-Control": "max-age=86400, immutable"})
+
+    @app.delete("/uploads/{upload_id}", status_code=204, summary="Delete an uploaded study")
+    def delete_upload(request: Request, upload_id: str):
+        uploads(request).delete(upload_id)
+        return Response(status_code=204)
+
     # --- Sessions ---
 
     def start(request: Request, response: Response, body: SessionCreate, kind: SessionKind,
               wait_s: float) -> SessionDetail:
+        if is_upload_id(body.study_id) and not request.app.state.uploads.exists(body.study_id):
+            raise HTTPException(status_code=404, detail=f"upload {body.study_id} not found; upload the scan again")
         try:
             entry = manager(request).start(body.study_id, body.patient_metadata, kind=kind, driver=body.driver)
         except QueueFullError as error:
@@ -177,6 +215,9 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         return StreamingResponse(_event_stream(request, entry, after), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+    if FRONTEND_DIST.joinpath("index.html").exists():  # after the API routes, so they take priority
+        app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+
     return app
 
 
@@ -224,7 +265,19 @@ def detail(entry: SessionEntry, include_events: bool = False) -> SessionDetail:
         final_report=state.final_report if entry.done.is_set() else None, errors=list(state.errors),
         disagreements=list(state.disagreements), recheck_rounds=state.recheck_rounds, user_action=state.user_action,
         usage=usage, stats=entry.stats, events=list(state.events) if include_events else None,
+        scores=_latest_scores(entry),
     )
+
+
+def _latest_scores(entry: SessionEntry) -> dict[str, float] | None:
+    # The Diagnostic Agent's last result, or (baseline) the Model Service scores in the trace.
+    if entry.state.latest_diagnostic is not None:
+        return dict(entry.state.latest_diagnostic.findings)
+    for event in reversed(list(entry.state.events)):
+        found = event.data.get("findings")
+        if isinstance(found, dict) and set(found) == set(FINDINGS):
+            return {name: float(found[name]) for name in FINDINGS}
+    return None
 
 
 app = create_app()
