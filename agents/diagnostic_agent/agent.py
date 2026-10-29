@@ -95,11 +95,11 @@ class DiagnosticAgent:
         """Load the model weights now (call at app start) so the first request is not slow."""
         self.predictor._get_model()
 
-    # ------------------------------------------------------------------ ADAPTER 1
+    # ------------------------------------------------------------------ TO-DO READ REQUESTS
     def _read_request(self, request: Any) -> KneeInputs:
         """
-        ADAPTER: map the project's request object onto KneeInputs.
-        The attribute names tried below are GUESSES. Replace them with the real field names.
+        Read the fields/ data from inputted data,
+        paths are temporary placeholders
         """
         paths = _get(request, "dicom_paths", "dicom_files", "files", "file_paths", "study_dir", "upload_dir")
         if paths is None:
@@ -112,17 +112,10 @@ class DiagnosticAgent:
             study_uid=_get(request, "study_instance_uid", "study_uid", "study_id"),
         )
 
-    # ------------------------------------------------------------------ ADAPTER 2
+    # ------------------------------------------------------------------ TO-DO BUILD OUTPUT FOR AGENTS
     def _build_response(self, session_id: str, result: dict) -> Any:
         """
-        ADAPTER: turn `result` into the project's DiagnosticAgentResponse, following prediction_to_diagnostic()
-        in agents/coordinator/runners.py. Until that is wired in, the plain dict is returned.
-
-        result keys: finding ({label: probability}), impression (text), findings (fused rows), summary,
-                     recommendation, disclaimer, study_instance_uid, series_used, missing_planes,
-                     report_source, warnings, session_id
-        `finding` and `impression` are what downstream agents read (request.finding[name], request.impression);
-        `confidence` still has to be filled in here with the project's own rule.
+        need expected response for coordinator and reccomendation agent
         """
         return result
 
@@ -179,6 +172,7 @@ class DiagnosticAgent:
             parts.append(f"Missing imaging plane(s): {', '.join(missing_planes)}; lower confidence.")
         return " ".join(parts)
 
+# --------------------------------------------------------------- Reccomendation if nothing found in diagnosis????
     def _recommend(self, findings: list[dict]) -> str:
         """
         Placeholder rules-based text. To have the LLM write this, call self.llm here with the fused findings,
