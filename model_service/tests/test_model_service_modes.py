@@ -70,10 +70,12 @@ def test_build_prediction_rejects_bad_model_output(study, planes, present):
 # --- replay mode ---
 
 def test_replay_serves_the_exported_predictions(tmp_path):
-    client = TestClient(create_app(Settings(model_mode="replay", replay_predictions=str(_write_replay(tmp_path / "p.json")))))
+    client = TestClient(create_app(Settings(model_mode="replay", replay_predictions=str(_write_replay(tmp_path / "p.json")),
+                                            model_checkpoint=str(tmp_path / "none.pt"))))
 
     health = client.get("/health").json()
-    assert health == {"status": "ok", "mode": "replay", "model_version": "knee_v1", "n_studies": 2, "detail": ""}
+    assert health == {"status": "ok", "mode": "replay", "model_version": "knee_v1", "n_studies": 2, "detail": "",
+                      "uploads": "unavailable"}
     assert client.get("/studies").json()["study_ids"] == ["study-a", "study-b"]
 
     body = PredictionResponse.model_validate(client.post("/predict", json={"study_id": "study-a"}).json())
