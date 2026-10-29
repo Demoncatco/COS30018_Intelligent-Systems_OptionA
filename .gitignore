@@ -16,3 +16,6 @@ data/
 # Model outputs and run logs
 logs/
 model_service/checkpoints/*.pt
+# Frontend
+frontend/node_modules/
+frontend/dist/
