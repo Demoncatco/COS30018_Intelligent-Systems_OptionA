@@ -1,186 +1,135 @@
 """
-DiagnosticAgent for the knee project.
+Diagnostic Agent: DiagnosticAgentRequest -> DiagnosticAgentResponse  (contracts: shared/schema.py,
+agents/coordinator/runners.py).
 
     agent = DiagnosticAgent(llm, settings)
-    response = agent(request, session_id=...)
+    response = agent(request, session_id=...)          # matches runners.DiagnosticRunner; raises on failure
 
-What it does per call:
-  1. image model:  uploaded DICOM files -> probability for each of the 12 findings   (knee_diagnosis.KneePredictor)
-  2. report side:  report text -> MedGemma extraction, or a lookup in findings.csv    (knee_diagnosis.ReportFindings)
-  3. fuse both into one row per finding, and draft a short summary / recommendation
+Where the image scores come from (chosen once, when the agent is created, and written to every trace):
+  1. local model   agents/diagnostic_agent/weights/best_model.pt exists (or settings.diagnostic_local_checkpoint /
+                   env DIAGNOSTIC_LOCAL_CHECKPOINT points at a file): the notebook-trained network runs in this process
+                   on the study's DICOM files (local_model/), found through the same LIVE_* settings as the Model Service.
+  2. Model Service otherwise: POST {MODEL_SERVICE_URL}/predict (model_client.py), retried inside TOOL_TIMEOUT_S.
 
-  
-Need to implement:
-- a way to pull dicom files/ path and associated study or series IDs from input 
-- output to to diagnostic or coorindator agent 
+What the agent adds around the scores:
+  - numbers, cross-plane variance, overall confidence and the FINALIZE/ESCALATE decision come from
+    prediction_to_diagnostic() in agents/coordinator/runners.py, so they match the interim adapter exactly
+  - a MedGemma-worded impression (impression.py), with a rule-based fallback
+  - a real trace, and a cross-check against the report findings in findings.csv (trace only, numbers untouched)
+
+Errors follow the Coordinator's rule "agents raise on failure": a missing study raises runners.StudyNotAvailableError
+(never retried); other Model Service failures are retried while time remains, then raised.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
-from .knee_diagnosis import KneePredictor, ReportFindings, fuse
-from .knee_diagnosis.config import ABNORMALITIES
+from agents.coordinator.runners import StudyNotAvailableError, prediction_to_diagnostic
+from shared.config import Settings, get_settings
+from shared.schema import FINDINGS, DiagnosticAgentRequest, DiagnosticAgentResponse, PredictionResponse
+
+from .impression import build_impression
+from .model_client import ModelServiceClient
+from .report_crosscheck import ReportCrossCheck
+
+if TYPE_CHECKING:
+    from shared.llm import LLMClient
 
 log = logging.getLogger(__name__)
 
-DISCLAIMER = ("Automated research output, not a diagnosis. Findings must be reviewed by a qualified "
-              "radiologist or orthopaedic clinician before any clinical decision.")
+HERE = Path(__file__).parent
+DEFAULT_CHECKPOINT = HERE / "weights" / "best_model.pt"
+DEFAULT_FINDINGS_CSV = HERE / "findings.csv"
 
-
-def _setting(settings: Any, name: str, env: str, default: Any = None) -> Any:
-    """settings.<name> if present, else the environment variable, else the default."""
-    value = settings.get(name) if isinstance(settings, dict) else getattr(settings, name, None)
-    if value in (None, ""):
-        value = os.environ.get(env, default)
-    return value
-
-
-def _get(obj: Any, *names: str) -> Any:
-    """First non-empty attribute / dict key among `names`, else None."""
-    for n in names:
-        v = obj.get(n) if isinstance(obj, dict) else getattr(obj, n, None)
-        if v not in (None, "", []):
-            return v
-    return None
-
-
-def _check_finding_names() -> None:
-    """The Coordinator indexes request.finding[name] for every name in shared.schema.FINDINGS, so ours must match."""
-    try:
-        from shared.schema import FINDINGS
-    except ImportError:          # running outside the main project (e.g. standalone tests)
-        return
-    if set(FINDINGS) != set(ABNORMALITIES):
-        log.warning("finding names differ from shared.schema.FINDINGS: only in model=%s, only in schema=%s",
-                    sorted(set(ABNORMALITIES) - set(FINDINGS)), sorted(set(FINDINGS) - set(ABNORMALITIES)))
-
-
-@dataclass
-class KneeInputs:
-    dicom_paths: list[str]
-    report_text: str | None = None
-    study_uid: str | None = None
+DEFAULT_MAX_RETRIES = 2         # failed Model Service calls retried while time is left in the budget below
+TIME_BUDGET_SHARE = 0.9         # the Coordinator abandons the call after TOOL_TIMEOUT_S, so retries stop before that
+MIN_ATTEMPT_S = 1.0
 
 
 class DiagnosticAgent:
-    def __init__(self, llm: Any, settings: Any):
+    def __init__(
+        self,
+        llm: LLMClient | None = None,
+        settings: Settings | None = None,
+        *,
+        predictor: Callable[..., PredictionResponse] | None = None,
+        findings_csv: str | os.PathLike | None = None,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+    ) -> None:
         self.llm = llm
-        self.settings = settings
-        here = Path(__file__).parent
-        _check_finding_names()
-        # Same threshold the Coordinator/Recommendation agent use to decide which findings count as "reported".
-        threshold = _setting(settings, "knee_threshold", "KNEE_THRESHOLD", None)
-        if threshold is None:
-            threshold = _get(settings, "report_threshold") or 0.5
-        self.predictor = KneePredictor(
-            model_path=_setting(settings, "knee_model_path", "KNEE_MODEL_PATH", here / "weights" / "dicom_model.pt"),
-            threshold=float(threshold),
-        )
-        # The Coordinator stops waiting after TOOL_TIMEOUT_S, so live report extraction is kept short: one
-        # attempt, 60 s. If it fails, the agent falls back to findings.csv. Keep this below TOOL_TIMEOUT_S.
-        self.reports = ReportFindings(
-            findings_csv=_setting(settings, "knee_findings_csv", "KNEE_FINDINGS_CSV", here / "data" / "findings.csv"),
-            ollama_host=_setting(settings, "ollama_host", "OLLAMA_HOST", "http://localhost:11434"),
-            model=_setting(settings, "knee_report_model", "KNEE_REPORT_MODEL", "medgemma:4b"),
-            timeout=int(_setting(settings, "knee_report_timeout", "KNEE_REPORT_TIMEOUT", 60)),
-            retries=0,
-        )
+        self.settings = settings or (llm.settings if llm is not None else get_settings())
+        self.max_retries = max_retries
+        if predictor is not None:
+            self.predictor, self.source = predictor, "injected predictor"
+        else:
+            self.predictor, self.source = self._choose_predictor()
+        csv = findings_csv or os.environ.get("KNEE_FINDINGS_CSV") or DEFAULT_FINDINGS_CSV
+        self.report_check = ReportCrossCheck(csv, FINDINGS)
 
-    def warm_up(self) -> None:
-        """Load the model weights now (call at app start) so the first request is not slow."""
-        self.predictor._get_model()
+    def _choose_predictor(self) -> tuple[Callable[..., PredictionResponse], str]:
+        configured = (getattr(self.settings, "diagnostic_local_checkpoint", None)
+                      or os.environ.get("DIAGNOSTIC_LOCAL_CHECKPOINT"))
+        checkpoint = Path(configured) if configured else DEFAULT_CHECKPOINT
+        if checkpoint.is_file():
+            from .local_model.predictor import LocalKneePredictor   # imports torch only on this path
 
-    # ------------------------------------------------------------------ TO-DO READ REQUESTS
-    def _read_request(self, request: Any) -> KneeInputs:
-        """
-        Read the fields/ data from inputted data,
-        paths are temporary placeholders
-        """
-        paths = _get(request, "dicom_paths", "dicom_files", "files", "file_paths", "study_dir", "upload_dir")
-        if paths is None:
-            raise ValueError("request contains no DICOM files/folder (adapt DiagnosticAgent._read_request)")
-        if isinstance(paths, (str, os.PathLike)):
-            paths = [paths]
-        return KneeInputs(
-            dicom_paths=[str(p) for p in paths],
-            report_text=_get(request, "report", "report_text", "radiology_report"),
-            study_uid=_get(request, "study_instance_uid", "study_uid", "study_id"),
-        )
-
-    # ------------------------------------------------------------------ TO-DO BUILD OUTPUT FOR AGENTS
-    def _build_response(self, session_id: str, result: dict) -> Any:
-        """
-        need expected response for coordinator and reccomendation agent
-        """
-        return result
+            log.info("Diagnostic Agent: local model %s", checkpoint)
+            return LocalKneePredictor(checkpoint, self.settings), f"local model ({checkpoint.name})"
+        log.info("Diagnostic Agent: no local checkpoint at %s; using the Model Service", checkpoint)
+        return ModelServiceClient(self.settings), f"Model Service ({self.settings.model_service_url})"
 
     # ------------------------------------------------------------------
-    def __call__(self, request: Any, *, session_id: str) -> Any:
-        inputs = self._read_request(request)
-        image = self.predictor.predict(inputs.dicom_paths)          # raises ValueError / FileNotFoundError with a clear message
+    def __call__(self, request: DiagnosticAgentRequest, *, session_id: str) -> DiagnosticAgentResponse:
+        trace = [f"session {session_id}: task_type={request.task_type}; study={request.study_id}"
+                 + (f"; focus={request.focus_findings}" if request.focus_findings else ""),
+                 f"Image scores from: {self.source}."]
+        prediction, retries = self._score(request.study_id, trace)
 
-        study_uid = image["study_instance_uid"] or inputs.study_uid
-        report, source, report_warnings = self.reports.get(study_uid, inputs.report_text)
+        # Numbers, variance, overall confidence and the FINALIZE/ESCALATE decision come from the project's own rule.
+        base = prediction_to_diagnostic(prediction, request, self.settings.report_threshold)
+        flags = list(base.quality_flags)        # only the schema's own flags: low_slice_count, missing_plane:<plane>
+        per_plane = {p.plane: dict(p.scores) for p in prediction.per_plane}
+        stub = prediction.model_version.startswith("stub-")   # the schema says 'stub-*' means random output
 
-        findings = fuse(image["probabilities"], report, image["threshold"])
-        result = {
-            "session_id": session_id,
-            "study_instance_uid": study_uid,
-            "findings": findings,
-            "series_used": image["series_used"],
-            "missing_planes": image["missing_planes"],
-            "report_source": source,
-            "warnings": image["warnings"] + report_warnings,
-            "disclaimer": DISCLAIMER,
-        }
-        result["summary"] = self._summarise(findings, source, image["missing_planes"])
-        result["recommendation"] = self._recommend(findings)
-        # The fields the Coordinator / Recommendation agent read downstream (request.finding[name], request.impression).
-        result["finding"] = dict(image["probabilities"])
-        result["impression"] = result["summary"]
-        # `confidence` is also read downstream (request.confidence). It is NOT set here: use the project's own rule
-        # from prediction_to_diagnostic() in _build_response, so the value means the same as it does for the interim adapter.
-        return self._build_response(session_id, result)
+        trace.append(f"Model {prediction.model_version}: planes {list(per_plane)}, {prediction.latency_ms:.0f} ms; "
+                     f"laterality {prediction.laterality} ({prediction.laterality_source}).")
+        if stub:
+            trace.append("The model is a stub: scores are random placeholders.")
+        trace.append(f"QC flags: {flags}" if flags else f"QC passed: all {len(per_plane)} planes present.")
+        if base.cross_plane_variance:
+            trace.append("Planes disagree: " + ", ".join(f"{n} {v:.2f}" for n, v in base.cross_plane_variance.items()))
+        trace.extend(self.report_check.trace_lines(request.study_id, prediction.findings, self.settings.report_threshold))
+
+        focus = request.focus_findings if request.task_type.startswith("recheck") else []
+        uncertain = sorted(base.cross_plane_variance, key=lambda n: -base.cross_plane_variance[n])
+        impression, how = build_impression(
+            self.llm, session_id, prediction.findings, self.settings.report_threshold, uncertain,
+            flags + (["stub_model"] if stub else []), focus, per_plane)
+        trace.append(f"Impression written by {how}.")
+        trace.append(f"Overall confidence {base.overall_confidence:.2f}. Decision: {base.decision.value}.")
+
+        # Rebuilt through the constructor so the schema validators run on the final values.
+        return DiagnosticAgentResponse(**{**base.model_dump(), "retry_count": retries, "quality_flags": flags,
+                                          "impression": impression, "trace": trace})
 
     # ------------------------------------------------------------------
-    @staticmethod
-    def _summarise(findings: list[dict], report_source: str | None, missing_planes: list[str]) -> str:
-        positives = [f for f in findings if f["image_positive"]]
-        parts = []
-        if positives:
-            items = ", ".join(f"{f['abnormality']} ({f['image_probability']:.0%})" for f in
-                              sorted(positives, key=lambda f: -f["image_probability"]))
-            parts.append(f"Imaging model flags: {items}.")
-        else:
-            parts.append("Imaging model flags no abnormality above the threshold.")
-        reported = [f"{f['abnormality']}: {f['report_severity']}" for f in findings if f["report_state"] == "abnormal"]
-        if reported:
-            parts.append("Report findings: " + "; ".join(reported) + ".")
-        elif report_source:
-            parts.append("Report lists no abnormal findings among the tracked structures.")
-        else:
-            parts.append("No radiology report was available to compare against.")
-        conflicts = [f["abnormality"] for f in findings if f["agreement"] in ("conflict", "report_only")]
-        if conflicts:
-            parts.append("Image model and report disagree on: " + ", ".join(conflicts) + ".")
-        if missing_planes:
-            parts.append(f"Missing imaging plane(s): {', '.join(missing_planes)}; lower confidence.")
-        return " ".join(parts)
-
-# --------------------------------------------------------------- Reccomendation if nothing found in diagnosis????
-    def _recommend(self, findings: list[dict]) -> str:
-        """
-        Placeholder rules-based text. To have the LLM write this, call self.llm here with the fused findings,
-        using whatever interface the project's `llm` object exposes (not visible to me).
-        """
-        flagged = [f["abnormality"] for f in findings if f["agreement"] in ("confirmed", "image_only", "conflict", "report_only")]
-        if not flagged:
-            return "No abnormality flagged. Clinical correlation and routine radiologist review are still advised."
-        return ("Flagged for clinician review: " + ", ".join(flagged) +
-                ". Recommend radiologist confirmation against the full study and correlation with clinical examination "
-                "before any treatment decision.")
+    def _score(self, study_id: str, trace: list[str]) -> tuple[PredictionResponse, int]:
+        """Runs the predictor with retries. Returns (prediction, failed attempts). StudyNotAvailableError is never retried."""
+        deadline = time.monotonic() + float(self.settings.tool_timeout_s) * TIME_BUDGET_SHARE
+        failures = 0
+        while True:
+            try:
+                return self.predictor(study_id, timeout=max(deadline - time.monotonic(), MIN_ATTEMPT_S)), failures
+            except StudyNotAvailableError:
+                raise
+            except Exception as error:  # noqa: BLE001 - network, timeout, 5xx, bad response or a model error
+                failures += 1
+                trace.append(f"Scoring failed ({type(error).__name__}: {error}); attempt {failures}.")
+                if failures > self.max_retries or deadline - time.monotonic() < MIN_ATTEMPT_S:
+                    raise
