@@ -51,7 +51,7 @@ Open <http://localhost:8000/docs> and try `POST /sessions` with `{"study_id": "t
 | FastAPI backend, baseline, live trace | Working (section 8.3) |
 | Logging, traces, sandboxing, timeouts, CI | Working (sections 11–13) |
 | System evaluation (39 tasks, multi-agent vs baseline) | Harness, test set and metrics ready (`evaluation/README.md`); real results pending a run with Ollama |
-| React frontend | Pending |
+| React frontend (upload a scan, live agent trace, report) | Working (section 8.4) |
 
 ---
 
@@ -329,6 +329,7 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   ├── sessions.py              ✅ worker threads, per-session usage, save/reload from logs/
 │   ├── baseline.py              ✅ single MedGemma call, same FinalReport
 │   ├── traces.py                ✅ list / show / check / export session traces
+│   ├── uploads.py               ✅ upload store + slice previews for the UI
 │   └── tests/                   ✅ API tests + shared fakes (no servers needed)
 ├── tests/                       ✅ engineering requirements: disclaimer, sandboxing, timeouts, logging
 ├── evaluation/
@@ -341,8 +342,8 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   ├── test_cases/              ✅ 22 development + 17 unseen tasks
 │   ├── coordinator_scenarios.py ✅ 20 Coordinator validation scenarios
 │   └── coordinator_validation.py ✅ Coordinator validation runner and metrics
-├── frontend/src/                ⬜ React frontend
-├── index.html, script.js, style.css   🟡 static UI prototype
+├── frontend/                    ✅ React + Vite UI: upload, slice viewer, live trace, report (section 8.4)
+├── index.html, script.js, style.css   🟡 old static prototype (superseded by frontend/)
 ├── model_service/
 │   ├── api/main.py              ✅ Model Service API (stub, replay and live modes)
 │   ├── knee_model/
@@ -359,6 +360,7 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   │   ├── train.py             ✅ training loop, split (reusable across runs), checkpoint
 │   │   ├── inference.py         ✅ checkpoint → PredictionResponse (shared by live mode and the exporter)
 │   │   ├── export_predictions.py ✅ Kaggle: writes predictions.json for replay mode
+│   │   ├── upload.py            ✅ uploaded DICOMs/.zip → plane + series from headers → model input
 │   │   └── evaluate.py          ⬜ per-finding AUC and calibration
 │   ├── checkpoints/             (git-ignored *.pt; predictions.json goes here for replay mode)
 │   ├── notebooks/               Kaggle notebooks
@@ -543,10 +545,62 @@ imported, sessions still run and end `partial` with the reason in `errors`.
 
 ### 8.4 Frontend
 
-Currently a static prototype: open `index.html` in a browser. The React app in `frontend/` will replace it and
-talk to the backend: `POST /sessions` to start, `GET /sessions/{id}/stream` for the live trace,
-`GET /sessions/{id}/report` for the result (example in section 8.3). Add the dev server's address to
-`BACKEND_CORS_ORIGINS` if it is not on port 5173 or 3000.
+The React app in `frontend/` lets a user upload a knee MRI and get the report. Needs Node.js 18+.
+
+```bash
+cd frontend && npm install && npm run build   # once, and after frontend changes
+uvicorn model_service.api.main:app --port 8001 # terminal 1 (from the repo root)
+uvicorn backend.main:app --port 8000           # terminal 2; serves the built UI at http://localhost:8000
+```
+
+For frontend work, `npm run dev` (in `frontend/`) serves it at <http://localhost:5173> with hot reload and proxies
+the API to port 8000 (`BACKEND_URL` changes the target).
+
+**What the user does.** Drop the study's `.dcm` files, the study folder or a `.zip` on the page (or pick a dataset
+study), optionally fill in age, sex, symptoms and how it happened, choose agent team or baseline, press *Analyse scan*.
+The left side shows the three views exactly as the model sees them (20 slices each, with a scrubber); the right side
+shows each agent's progress live, then the report: findings ranked by probability with the reporting threshold, urgency,
+impression, recommendation with sources, rechecks/disagreements, errors and the full trace.
+
+**How uploads work.** `POST /uploads` stores the files under `UPLOAD_DIR/studies/upl-<id>/` and runs
+`model_service/knee_model/upload.py`: the plane comes from `ImageOrientationPatient` (slice normal), fluid-sensitive from
+the series description (FS, SPAIR, STIR, FATSAT, ...), then the same fallback ladder as training picks one series per
+plane and the same preprocessing makes the `(3, 20, 224, 224)` block. Localisers and non-DICOM files are skipped;
+JPG/PNG screenshots are refused because the model needs the full series. The upload id (`upl-...`) is then used as the
+`study_id` of a normal session, so the agents need no changes.
+
+**Who scores an upload.** If `agents/diagnostic_agent/weights/best_model.pt` exists (it is committed), the Diagnostic
+Agent scores uploads itself, in the backend process, and the baseline uses the same model; the Model Service is then
+optional and the header shows *Trained model (Diagnostic Agent)*. The first scan is slow on CPU (model load). Without
+that file, the Model Service scores uploads by `MODEL_MODE`:
+
+| `MODEL_MODE` | Uploaded scans are scored by |
+|---|---|
+| `stub` | demo scores (the UI says so in a banner) |
+| `replay` | the checkpoint at `MODEL_CHECKPOINT`, loaded on first use (CPU is fine); 503 with the reason if it is missing |
+| `live` | the live checkpoint |
+
+`GET /health` shows this as `model_service.uploads` (`stub` / `model` / `unavailable`). Both services must see the same
+`UPLOAD_DIR`; run them from the repo root on the same machine. Uploads are real patient-style data: `data/` is git-ignored,
+and `DELETE /uploads/{id}` removes one.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /uploads` | Multipart `files` (`.dcm` files or one `.zip`). Returns `UploadSummary`: series found, series used per plane, quality flags, laterality. `422` with a plain-language reason if unusable |
+| `GET /uploads/{id}` | The same summary |
+| `GET /uploads/{id}/slices/{plane}/{i}.png` | One preprocessed slice (`i` = 0–19) |
+| `DELETE /uploads/{id}` | Delete an upload |
+
+### 8.5 System evaluation
+
+The full evaluation (39 tasks through the real agents, multi-agent vs baseline) is described in
+[`evaluation/README.md`](evaluation/README.md). With Ollama running:
+
+```bash
+python -m evaluation.run_eval --tasks D01 --system multi_agent # one task, to time it
+python -m evaluation.run_eval                                  # everything -> evaluation/results/system/<run>/
+python -m evaluation.run_eval --resume <run folder>            # continue an interrupted run
+```
 
 ### 8.5 System evaluation
 

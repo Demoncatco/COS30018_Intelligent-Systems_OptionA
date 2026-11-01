@@ -6,6 +6,8 @@
 #   replay = precomputed scores from predictions.json, exported on Kaggle by model_service/knee_model/export_predictions.py.
 #            Real model output with no GPU and no dataset needed. Unknown study_ids get a 404.
 #   live   = runs the trained checkpoint on DICOMs downloaded to LIVE_DATASET_ROOT. Needs torch and the data.
+# Studies uploaded through the UI (study_id "upl-...") are read from UPLOAD_DIR in every mode: stub scores in stub mode,
+# the checkpoint at MODEL_CHECKPOINT otherwise.
 #
 # Run the web server via --> uvicorn model_service.api.main:app --port 8001 --reload
 # Once the web server is running, http://localhost:8001/docs provides auto-generated documentation.
@@ -15,14 +17,18 @@ from __future__ import annotations
 
 import logging
 import random
+import threading
 import time
 from pathlib import Path
 from typing import Literal, Protocol
 
 from fastapi import FastAPI, HTTPException
+import numpy as np
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from model_service.knee_model.inference import build_prediction
+from model_service.knee_model.upload import is_upload_id, load_model_input, load_summary
 from shared.config import Settings, get_settings
 from shared.schema import (
     FINDINGS,
@@ -167,6 +173,67 @@ class LiveBackend:
         return sorted(on_disk & set(self.series_table["StudyInstanceUID"].astype(str)))
 
 
+# ------------------------------------------------------------
+# uploads: scans sent through the UI, stored under UPLOAD_DIR
+# ------------------------------------------------------------
+class UploadScoringUnavailable(RuntimeError):
+    """Uploaded scans need a trained checkpoint outside stub mode."""
+
+
+class UploadScorer:
+    def __init__(self, settings: Settings, backend: Backend | None) -> None:
+        self.settings = settings
+        self.root = Path(settings.upload_dir)
+        self.backend = backend
+        self._predictor = None
+        self._lock = threading.Lock()
+
+    @property
+    def method(self) -> str:
+        # "stub" = random scores, "model" = the checkpoint, "unavailable" = no checkpoint to run.
+        if self.settings.model_mode == "stub":
+            return "stub"
+        if isinstance(self.backend, LiveBackend) or Path(self.settings.model_checkpoint).exists():
+            return "model"
+        return "unavailable"
+
+    def _get_predictor(self):
+        if isinstance(self.backend, LiveBackend):
+            return self.backend.predictor
+        with self._lock:
+            if self._predictor is None:
+                if not Path(self.settings.model_checkpoint).exists():
+                    raise UploadScoringUnavailable(
+                        f"uploaded scans need the trained checkpoint at {self.settings.model_checkpoint} "
+                        f"(MODEL_CHECKPOINT) in {self.settings.model_mode} mode, or MODEL_MODE=stub for demo scores")
+                from model_service.knee_model.inference import KneePredictor
+
+                self._predictor = KneePredictor(self.settings.model_checkpoint, device=self.settings.model_device)
+                logger.info("upload scoring: %s on %s", self._predictor.model_version, self._predictor.device)
+            return self._predictor
+
+    def predict(self, study_id: str) -> PredictionResponse:
+        start = time.perf_counter()
+        try:
+            summary = load_summary(self.root, study_id)
+        except FileNotFoundError:
+            raise StudyNotFoundError(study_id) from None
+        present = np.array([p.present for p in summary.planes])
+        if self.settings.model_mode == "stub":
+            stub = StubBackend().predict(study_id)
+            planes = np.array([[ps.scores[f] for f in FINDINGS] for ps in stub.per_plane])
+            study_probs = planes[present].mean(axis=0)
+            version = stub.model_version
+        else:
+            predictor = self._get_predictor()
+            array, present, _ = load_model_input(self.root, study_id, predictor.n_slices, predictor.image_size)
+            study_probs, planes = predictor.predict_array(array, present)
+            version = predictor.model_version
+        return build_prediction(study_id, study_probs, planes, present, quality_flags=summary.quality_flags,
+                                laterality=summary.laterality, laterality_source=summary.laterality_source,
+                                model_version=version, latency_ms=(time.perf_counter() - start) * 1000)
+
+
 def build_backend(settings: Settings) -> Backend:
     if settings.model_mode == "stub":
         return StubBackend()
@@ -187,6 +254,8 @@ class HealthResponse(BaseModel):
     model_version: str | None = Field(description="Version of the loaded model. 'stub-*' means random output.")
     n_studies: int | None = Field(default=None, description="Studies available in replay/live mode; None in stub mode.")
     detail: str = Field(default="", description="Why loading failed, when status is 'error'.")
+    uploads: Literal["stub", "model", "unavailable"] = Field(
+        default="unavailable", description="How uploaded scans are scored: stub scores, the checkpoint, or not at all.")
 
 
 class StudiesResponse(BaseModel):
@@ -217,6 +286,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.backend = backend
     app.state.load_error = load_error
+    uploads = UploadScorer(settings, backend)
+    app.state.uploads = uploads
 
     def _require_backend() -> Backend:
         if backend is None:
@@ -226,11 +297,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health", response_model=HealthResponse, summary="Liveness check")
     def health() -> HealthResponse | JSONResponse:
         if backend is None:
-            body = HealthResponse(status="error", mode=mode, model_version=None, detail=load_error)
+            body = HealthResponse(status="error", mode=mode, model_version=None, detail=load_error,
+                                  uploads=uploads.method)
             return JSONResponse(status_code=503, content=body.model_dump())
         ids = backend.study_ids()
         return HealthResponse(status="ok", mode=mode, model_version=backend.model_version,
-                              n_studies=None if ids is None else len(ids))
+                              n_studies=None if ids is None else len(ids), uploads=uploads.method)
 
     @app.get("/studies", response_model=StudiesResponse, summary="Study IDs this mode can score")
     def studies() -> StudiesResponse:
@@ -239,9 +311,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/predict", response_model=PredictionResponse, summary="Score one study")
     def predict(request: PredictionRequest) -> PredictionResponse:
-        active = _require_backend()
+        active = uploads if is_upload_id(request.study_id) else _require_backend()
         try:
             return active.predict(request.study_id)
+        except UploadScoringUnavailable as error:
+            raise HTTPException(status_code=503, detail=str(error)) from None
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail=f"study {request.study_id} is not available in {mode} mode") from None
         except Exception as error:

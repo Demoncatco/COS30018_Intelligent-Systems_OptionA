@@ -42,6 +42,8 @@ class SessionDetail(SessionSummary):
     usage: dict = Field(default_factory=dict, description="LLM calls, tokens and latency per agent for this session.")
     stats: dict | None = Field(default=None, description="Coordinator stats (valid-call rate, overrides, ...).")
     events: list[AgentEvent] | None = Field(default=None, description="Only with ?include_events=true.")
+    scores: dict[str, float] | None = Field(
+        default=None, description="All 12 study probabilities from the latest scoring, reported or not (for the UI).")
 
 
 class EventsPage(BaseModel):

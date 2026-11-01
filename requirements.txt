@@ -21,6 +21,7 @@ torchvision>=0.16 # Provides the pretrained ResNet18 backbone and transforms.v2 
 
 # API Packages:
 fastapi>=0.110 # Turns the python functions into web addresses
+python-multipart # Lets FastAPI receive file uploads (POST /uploads from the UI).
 uvicorn[standard] # Runs the server, fastapi describes the app, uvicorn serves it.
 pydantic>=2.6 # Used to check that data is formatted correctly and in the right shape.
 pydantic-settings>=2.2 # Reads settings from .env into one typed Settings object (shared/config.py).

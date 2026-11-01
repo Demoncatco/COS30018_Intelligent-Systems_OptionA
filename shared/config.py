@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     live_series_csv: str = "data/rsna-knee/train_series.csv"
     live_split_folder: str = "train_series"
     model_device: Literal["auto", "cpu", "cuda"] = "auto"
+    # Scans uploaded through the UI. The backend writes here and the Model Service reads here, so both need the same path.
+    upload_dir: str = "data/uploads"
+    upload_max_mb: int = Field(default=1024, ge=1, le=10_000)  # unzipped size limit for one upload
 
     # --- Coordinator ---
     tool_timeout_s: float = Field(default=60.0, gt=0)
