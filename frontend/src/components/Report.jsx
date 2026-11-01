@@ -25,7 +25,9 @@ export default function Report({ detail, health }) {
   const threshold = health?.config?.report_threshold ?? 0.5;
   const reported = report.findings ?? [];
   const status = detail.status;
-  const stub = health?.config?.model_mode === "stub" || health?.model_service?.uploads === "stub";
+  // Local Diagnostic Agent model means real scores, whatever mode the Model Service is in
+  const local = health?.scoring?.source === "local";
+  const stub = !local && (health?.config?.model_mode === "stub" || health?.model_service?.uploads === "stub");
   const urgency = URGENCY[report.urgency];
   const names = reported.map((f) => phrase(FINDING_INFO[f.name]?.label ?? f.name));
 

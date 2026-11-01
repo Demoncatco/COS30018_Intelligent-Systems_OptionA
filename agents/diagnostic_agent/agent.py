@@ -69,6 +69,8 @@ class DiagnosticAgent:
             self.predictor, self.source = predictor, "injected predictor"
         else:
             self.predictor, self.source = self._choose_predictor()
+        # Local predictor is also handed to the baseline, so both systems score with the same model
+        self.scorer = self.predictor if hasattr(self.predictor, "predict") else None
         csv = findings_csv or os.environ.get("KNEE_FINDINGS_CSV") or DEFAULT_FINDINGS_CSV
         self.report_check = ReportCrossCheck(csv, FINDINGS)
 

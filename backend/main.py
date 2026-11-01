@@ -102,9 +102,13 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     def health(request: Request, deep: bool = Query(True, description="false = skip the Ollama/Model Service checks")):
         services: Services = request.app.state.services
         runners = services.runners
+        local = services.scorer is not None
         body: dict = {
             "agents": {"diagnostic": runners.diagnostic_impl, "recommendation": runners.recommendation_impl,
                        "notes": runners.notes},
+            # Where image scores come from: the Diagnostic Agent's own checkpoint, or the Model Service
+            "scoring": {"source": "local" if local else "model_service",
+                        "detail": getattr(runners.diagnostic, "source", "Model Service")},
             "sessions": manager(request).counts(),
             "config": {"model_mode": settings.model_mode, "report_threshold": settings.report_threshold,
                        "low_confidence_threshold": settings.low_confidence_threshold,
@@ -115,7 +119,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         if deep:
             body["model_service"] = services.model_service.health()
             body["ollama"] = services.llm.health()
-            ready = (body["model_service"].get("status") == "ok" and body["ollama"].get("ready") is True
+            scoring_ok = local or body["model_service"].get("status") == "ok"
+            ready = (scoring_ok and body["ollama"].get("ready") is True
                      and runners.recommendation_impl == "agent")
             body["status"] = "ok" if ready else "degraded"
         else:

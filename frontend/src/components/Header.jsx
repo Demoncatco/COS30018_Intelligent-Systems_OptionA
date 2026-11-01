@@ -9,7 +9,8 @@ export default function Header({ health, error, onRetry }) {
   } else if (health) {
     const ms = health.model_service ?? {};
     const uploads = ms.uploads;
-    if (ms.status === "unreachable") scoring = { text: "Model Service offline", tone: "bad" };
+    if (health.scoring?.source === "local") scoring = { text: "Trained model (Diagnostic Agent)", tone: "good" };
+    else if (ms.status === "unreachable") scoring = { text: "Model Service offline", tone: "bad" };
     else if (uploads === "stub" || health.config?.model_mode === "stub") scoring = { text: "Demo scores (stub model)", tone: "warn" };
     else if (uploads === "model") scoring = { text: `Trained model (${ms.model_version ?? "checkpoint"})`, tone: "good" };
     else if (uploads === "unavailable") scoring = { text: "Uploads need a checkpoint", tone: "warn" };
@@ -34,7 +35,7 @@ export default function Header({ health, error, onRetry }) {
         </div>
       </div>
       <ul className="status-list" aria-label="System status">
-        <li className={`status ${scoring.tone}`} title={error || health?.model_service?.detail || ""}>
+        <li className={`status ${scoring.tone}`} title={error || health?.scoring?.detail || health?.model_service?.detail || ""}>
           <span className="dot" aria-hidden="true" />
           {scoring.text}
         </li>

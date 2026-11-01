@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     # --- Backend (FastAPI, backend/) ---
     # "auto" uses agents.diagnostic_agent.agent.DiagnosticAgent when it exists, else the interim Model Service adapter.
     diagnostic_impl: Literal["auto", "agent", "interim"] = "auto"
+    # Diagnostic Agent's own checkpoint; empty = agents/diagnostic_agent/weights/best_model.pt if present
+    diagnostic_local_checkpoint: str = ""
     backend_max_workers: int = Field(default=2, ge=1, le=16)  # sessions running at once; the rest wait as "pending"
     backend_max_sessions: int = Field(default=200, ge=1)  # kept in memory; older finished ones are read from logs/
     backend_max_pending: int = Field(default=20, ge=0)  # queued sessions allowed before POST returns 429

@@ -1,5 +1,6 @@
 """
 LocalKneePredictor: study_id -> PredictionResponse, using the checkpoint trained in the Kaggle notebook.
+Takes Kaggle study ids (found via LIVE_* settings) and UI upload ids ("upl-...", read from UPLOAD_DIR).
 
 It reuses the repo's own helpers for everything that is not the network, so a study is found and described the same
 way the Model Service does it:
@@ -24,6 +25,7 @@ from agents.coordinator.runners import StudyNotAvailableError
 from model_service.knee_model.dicom_io import load_series
 from model_service.knee_model.inference import build_prediction, read_laterality, resolve_device
 from model_service.knee_model.series_selection import LEVEL3_PLANE_MISSING, select_series, series_path
+from model_service.knee_model.upload import is_upload_id, load_summary, study_dir
 from shared.config import Settings
 from shared.schema import PLANES, PredictionResponse
 
@@ -66,18 +68,40 @@ class LocalKneePredictor:
 
     def predict_study(self, study_id: str) -> PredictionResponse:
         """Raises StudyNotAvailableError if the study has no usable DICOM data."""
-        import torch
-
         start = time.perf_counter()
+        if is_upload_id(study_id):
+            folders, flags, laterality = self._upload_folders(study_id)
+        else:
+            folders, flags, laterality = self._dataset_folders(study_id)
+
+        arrays: dict[int, np.ndarray] = {}
+        for i, folder in folders.items():
+            try:
+                loaded = load_series(folder)
+            except (FileNotFoundError, ValueError) as error:
+                raise StudyNotAvailableError(f"study {study_id}: cannot read {PLANES[i]} series: {error}") from error
+            if loaded.n_slices < LOW_SLICE_COUNT_THRESHOLD and "low_slice_count" not in flags:
+                flags.append("low_slice_count")
+            arrays[i] = preprocess_volume(loaded.volume, self.depth, self.size)
+        if not arrays:
+            raise StudyNotAvailableError(f"study {study_id} has no usable planes")
+
+        study_probs, plane_probs, present = self._forward(arrays)
+        if laterality is None:  # dataset studies read it from the DICOM headers here
+            laterality = read_laterality(list(folders.values()))
+        return build_prediction(study_id, study_probs, plane_probs, present, quality_flags=flags,
+                                laterality=laterality[0], laterality_source=laterality[1],
+                                model_version=self.model_version, latency_ms=(time.perf_counter() - start) * 1000)
+
+    # ------------------------------------------------------------------
+    def _dataset_folders(self, study_id: str) -> tuple[dict[int, Path], list[str], None]:
+        # Kaggle study: series picked from train_series.csv, files under LIVE_DATASET_ROOT
         root, split = self.settings.live_dataset_root, self.settings.live_split_folder
         try:
             selection = select_series(study_id, self._table())
         except KeyError as error:
             raise StudyNotAvailableError(f"study {study_id} is not in the series table") from error
-
-        arrays: dict[int, np.ndarray] = {}
-        flags: list[str] = []
-        folders: list[Path] = []
+        folders: dict[int, Path] = {}
         for i, plane in enumerate(PLANES):
             chosen = selection[plane]
             if chosen.level == LEVEL3_PLANE_MISSING or chosen.series_id is None:
@@ -85,16 +109,22 @@ class LocalKneePredictor:
             folder = series_path(root, study_id, chosen.series_id, split)
             if not folder.is_dir():
                 raise StudyNotAvailableError(f"study {study_id}: series folder not found: {folder}")
-            try:
-                loaded = load_series(folder)
-            except (FileNotFoundError, ValueError) as error:
-                raise StudyNotAvailableError(f"study {study_id}: cannot read {plane} series: {error}") from error
-            if loaded.n_slices < LOW_SLICE_COUNT_THRESHOLD and "low_slice_count" not in flags:
-                flags.append("low_slice_count")
-            arrays[i] = preprocess_volume(loaded.volume, self.depth, self.size)
-            folders.append(folder)
-        if not arrays:
-            raise StudyNotAvailableError(f"study {study_id} has no usable planes")
+            folders[i] = folder
+        return folders, [], None
+
+    def _upload_folders(self, study_id: str) -> tuple[dict[int, Path], list[str], tuple[str, str]]:
+        # UI upload: series already picked at upload time (upload.json), files under UPLOAD_DIR
+        try:
+            summary = load_summary(self.settings.upload_dir, study_id)
+        except FileNotFoundError as error:
+            raise StudyNotAvailableError(f"upload {study_id} not found in {self.settings.upload_dir}") from error
+        root = study_dir(self.settings.upload_dir, study_id)
+        folders = {i: root / p.series_folder for i, p in enumerate(summary.planes)
+                   if p.present and p.series_folder}
+        return folders, list(summary.quality_flags), (summary.laterality, summary.laterality_source)
+
+    def _forward(self, arrays: dict[int, np.ndarray]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        import torch
 
         present = np.array([i in arrays for i in range(len(PLANES))])
         batch = {i: torch.from_numpy(a).unsqueeze(0).to(self.device) for i, a in arrays.items()}
@@ -103,11 +133,11 @@ class LocalKneePredictor:
         study_probs = torch.sigmoid(fused.float())[0].cpu().numpy()
         plane_probs = np.zeros((len(PLANES), study_probs.shape[0]))
         plane_probs[np.flatnonzero(present)] = torch.sigmoid(per_plane.float())[0].cpu().numpy()
+        return study_probs, plane_probs, present
 
-        laterality, source = read_laterality(folders)
-        return build_prediction(study_id, study_probs, plane_probs, present, quality_flags=flags, laterality=laterality,
-                                laterality_source=source, model_version=self.model_version,
-                                latency_ms=(time.perf_counter() - start) * 1000)
+    def predict(self, study_id: str) -> PredictionResponse:
+        # StudyScorer shape, so the baseline can score with the same model as the agent
+        return self.predict_study(study_id)
 
     def __call__(self, study_id: str, timeout: float | None = None) -> PredictionResponse:
         # Same call shape as ModelServiceClient, so the agent can use either. `timeout` cannot interrupt a local run.

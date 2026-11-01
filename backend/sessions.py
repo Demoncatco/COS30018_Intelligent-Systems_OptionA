@@ -53,7 +53,10 @@ class Services:
     def build(cls, settings: Settings | None = None) -> Services:
         settings = settings or get_settings()
         llm = LLMClient(settings)
-        return cls(settings, llm, build_runners(settings, llm), ModelServiceClient(settings))
+        runners = build_runners(settings, llm)
+        # Baseline scores with the Diagnostic Agent's local model when it has one (fair comparison)
+        scorer = getattr(runners.diagnostic, "scorer", None)
+        return cls(settings, llm, runners, ModelServiceClient(settings), scorer)
 
     def coordinator(self, driver: Driver) -> CoordinatorAgent:
         return CoordinatorAgent(self.runners.diagnostic, self.runners.recommendation,

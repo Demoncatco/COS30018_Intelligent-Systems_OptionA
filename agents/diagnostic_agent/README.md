@@ -11,8 +11,13 @@ Chosen once when the agent is created, and written into every trace ("Image scor
 | local model | `weights/best_model.pt` exists (or `DIAGNOSTIC_LOCAL_CHECKPOINT` points at a file) | the notebook-trained network, in this process, on the study's DICOM files |
 | Model Service | otherwise | `POST {MODEL_SERVICE_URL}/predict`, retried inside `TOOL_TIMEOUT_S` |
 
-The local model finds a study the way the Model Service's live mode does: `LIVE_SERIES_CSV` (train_series.csv),
-`LIVE_DATASET_ROOT` and `LIVE_SPLIT_FOLDER`. It reuses the repo's `select_series`, `load_series`, `build_prediction` and
+The local model takes two kinds of study id:
+- UI uploads (`upl-...`): read from `UPLOAD_DIR`, using the series the upload step already picked per plane (`upload.json`).
+- Kaggle studies: found the way the Model Service's live mode does: `LIVE_SERIES_CSV` (train_series.csv),
+  `LIVE_DATASET_ROOT` and `LIVE_SPLIT_FOLDER`.
+
+With the local model, the backend also gives it to the baseline (`/baseline`), so both systems score with the same
+network, and `/health` reports `scoring.source = "local"` (the Model Service is then not needed for scoring). It reuses the repo's `select_series`, `load_series`, `build_prediction` and
 `read_laterality`; only the network and its preprocessing (`local_model/`) are specific to the notebook checkpoint.
 
 ## Files
@@ -25,8 +30,8 @@ The local model finds a study the way the Model Service's live mode does: `LIVE_
 | `model_client.py` | Model Service call; HTTP 404 becomes `StudyNotAvailableError` |
 | `impression.py` | MedGemma wording of the impression (`llm.decide`), with guardrails and a rule-based fallback |
 | `report_crosscheck.py` | compares `findings.csv` (from `extract_knee_findings.py`) with the image result; trace only |
-| `weights/` | put `best_model.pt` here; `*.pt` is git-ignored |
-| `tests/` | `test_diagnostic_agent.py`, `test_local_model.py` |
+| `weights/` | `best_model.pt` (committed, about 45 MB) |
+| `tests/` | `test_local_model.py`: upload scoring, missing planes, unknown uploads, scorer sharing |
 
 ## What is decided where
 - Numbers, cross-plane variance, overall confidence and FINALIZE/ESCALATE come from `prediction_to_diagnostic()` in
