@@ -70,7 +70,7 @@ def diagnostic(study_id: str, positives: dict[str, float] | None = None, *,
                decision: DiagnosticDecision | str = DiagnosticDecision.FINALIZE, flags: Sequence[str] = (),
                variance: dict[str, float] | None = None, impression: str | None = None,
                laterality: str = "left", base: float = 0.05, base_confidence: float = 0.9,
-               retry_count: int = 0) -> DiagnosticAgentResponse:
+               retry_count: int = 0, per_plane: dict[str, dict[str, float]] | None = None) -> DiagnosticAgentResponse:
     """All findings at `base` except `positives`."""
     findings = {name: base for name in FINDINGS} | (positives or {})
     conf = {name: base_confidence for name in FINDINGS} | (confidence or {})
@@ -80,7 +80,7 @@ def diagnostic(study_id: str, positives: dict[str, float] | None = None, *,
     return DiagnosticAgentResponse(
         study_id=study_id, findings=findings, per_finding_confidence=conf, overall_confidence=overall,
         decision=DiagnosticDecision(decision), retry_count=retry_count, cross_plane_variance=variance or {},
-        quality_flags=list(flags), laterality=laterality, impression=impression,
+        per_plane=per_plane or {}, quality_flags=list(flags), laterality=laterality, impression=impression,
         trace=[f"scripted diagnostic: decision={DiagnosticDecision(decision).value}"],
     )
 

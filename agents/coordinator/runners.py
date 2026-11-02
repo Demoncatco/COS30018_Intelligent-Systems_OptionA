@@ -99,6 +99,7 @@ def prediction_to_diagnostic(prediction: PredictionResponse, request: Diagnostic
     return DiagnosticAgentResponse(
         study_id=prediction.study_id, findings=prediction.findings, per_finding_confidence=confidence,
         overall_confidence=round(overall, 3), decision=decision, retry_count=0, cross_plane_variance=variance,
+        per_plane={plane: dict(scores) for plane, scores in planes.items()},
         quality_flags=prediction.quality_flags, laterality=prediction.laterality, impression=impression,
         trace=[f"INTERIM adapter (no LLM): called Model Service /predict ({prediction.model_version}).",
                f"task_type={request.task_type}; planes={sorted(planes)}; decision={decision.value}."],

@@ -69,6 +69,7 @@ def build_final_report(ctx: RunContext, *, llm_summary: str = "", llm_unresolved
             if probability >= settings.report_threshold:
                 findings.append(ReportedFinding(
                     name=name, probability=round(probability, 4),
+                    per_plane={plane: round(scores[name], 4) for plane, scores in result.per_plane.items()},
                     low_confidence=(result.per_finding_confidence[name] < settings.low_confidence_threshold
                                     or name in disputed)))
 

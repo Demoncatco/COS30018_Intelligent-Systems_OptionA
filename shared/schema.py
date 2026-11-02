@@ -288,6 +288,14 @@ class DiagnosticAgentResponse(BaseModel):
         description="Findings with significant variation between imaging planes.",
     )
 
+    per_plane: dict[str, dict[str, float]] = Field(
+        default_factory=dict,
+        description=(
+            "Plane name -> probability for each of the 12 findings, from that plane alone. Only planes the model "
+            "scored; empty if the scorer gave no per-plane scores. Fills ReportedFinding.per_plane in the report."
+        ),
+    )
+
     quality_flags: list[str] = Field(
         default_factory=list,
         description=(
@@ -314,6 +322,16 @@ class DiagnosticAgentResponse(BaseModel):
     _validate_per_finding_confidence = field_validator("per_finding_confidence")(_check_scores)
     _validate_cross_plane_variance = field_validator("cross_plane_variance")(_check_partial_scores)
 
+    @field_validator("per_plane")
+    @classmethod
+    def _check_per_plane(cls, value: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
+        unknown = sorted(set(value) - set(PLANES))
+        if unknown:
+            raise ValueError(f"per_plane has unknown plane names: {unknown}; use {list(PLANES)}")
+        for scores in value.values():
+            _check_scores(scores)  # all 12 findings, each in [0, 1]
+        return value
+
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
@@ -325,6 +343,7 @@ class DiagnosticAgentResponse(BaseModel):
                     "decision": "finalize",
                     "retry_count": 0,
                     "cross_plane_variance": {},
+                    "per_plane": {plane: {name: 0.05 for name in FINDINGS} | {"ACL": 0.85} for plane in PLANES},
                     "quality_flags": [],
                     "laterality": "left",
                     "impression": "Likely ACL tear; no other finding above threshold.",

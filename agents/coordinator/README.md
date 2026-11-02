@@ -104,8 +104,6 @@ Results go to `evaluation/results/coordinator/` (CSV per run, JSON summary, Mark
 
 ## Known limitations
 
-- `ReportedFinding.per_plane` stays empty: `DiagnosticAgentResponse` has no per-plane scores. Adding them
-  to the schema would let the report show them.
 - Timed-out agent calls keep running in a background thread until they return (Python cannot kill threads);
   their result is discarded.
 - Token counts cover the Coordinator's own LLM calls. Sub-agent tokens appear in `LLMClient.usage_summary()`
