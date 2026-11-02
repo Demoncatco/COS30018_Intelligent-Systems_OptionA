@@ -62,7 +62,10 @@ class LocalKneePredictor:
         if self._series_table is None:
             path = Path(self.settings.live_series_csv)
             if not path.is_file():
-                raise FileNotFoundError(f"series table not found: {path} (set LIVE_SERIES_CSV)")
+                # No local Kaggle data: a dataset study id cannot be scored, only uploads can
+                raise StudyNotAvailableError(
+                    f"dataset study ids need the Kaggle data on this machine (series table not found: {path}, "
+                    f"set LIVE_SERIES_CSV); upload the study's DICOM files or .zip instead")
             self._series_table = pd.read_csv(path)
         return self._series_table
 

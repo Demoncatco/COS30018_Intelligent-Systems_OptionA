@@ -65,3 +65,9 @@ def test_model_service_path_has_no_local_scorer(tmp_path):
     settings = Settings(_env_file=None, diagnostic_local_checkpoint=str(tmp_path / "absent.pt"))
     agent = DiagnosticAgent(llm=None, settings=settings)
     assert agent.source.startswith("Model Service") and agent.scorer is None
+
+def test_dataset_id_without_kaggle_data_is_not_available(settings, checkpoint, tmp_path):
+    settings.live_series_csv = str(tmp_path / "missing.csv")
+    predictor = LocalKneePredictor(checkpoint, settings, depth=8, size=64)
+    with pytest.raises(StudyNotAvailableError, match="upload"):
+        predictor.predict("1.2.826.0.1.3680043.8.498.10001")
