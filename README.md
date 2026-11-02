@@ -409,7 +409,6 @@ After that the system runs offline, except optional web search.
 bash:
 
 ```bash
-git clone https://github.com/Demoncatco/COS30018_Intelligent-Systems_OptionA.git
 cd COS30018_Intelligent-Systems_OptionA
 python -m venv .venv
 source .venv/bin/activate
@@ -420,7 +419,6 @@ cp .env.example .env
 PowerShell:
 
 ```powershell
-git clone https://github.com/Demoncatco/COS30018_Intelligent-Systems_OptionA.git
 cd COS30018_Intelligent-Systems_OptionA
 python -m venv .venv
 .venv\Scripts\Activate.ps1      # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned, then retry
