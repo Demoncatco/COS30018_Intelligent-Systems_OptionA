@@ -1,0 +1,2816 @@
+{
+  "format_version": 1,
+  "model_version": "eval-fixture-v1",
+  "created_at": "2026-11-02T13:33:57+00:00",
+  "source": "evaluation fixture: controlled scores from evaluation/test_cases (not trained-model output)",
+  "predictions": [
+    {
+      "study_id": "eval-d01",
+      "findings": {
+        "ACL": 0.91,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.91,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.91,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.91,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d02",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d03",
+      "findings": {
+        "ACL": 0.86,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.78,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.71,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.86,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.78,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.71,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.86,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.78,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.71,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.86,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.78,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.71,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d04",
+      "findings": {
+        "ACL": 0.8,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.8,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.8,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [
+        "missing_plane:axial"
+      ],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d05",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.82,
+        "Lateral OA": 0.05,
+        "PF OA": 0.64,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.82,
+            "Lateral OA": 0.05,
+            "PF OA": 0.64,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.82,
+            "Lateral OA": 0.05,
+            "PF OA": 0.64,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.82,
+            "Lateral OA": 0.05,
+            "PF OA": 0.64,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d06",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.84
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.84
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.84
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.84
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d07",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.72,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.72,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.72,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.72,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d08",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.81,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.81,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.81,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.81,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d09",
+      "findings": {
+        "ACL": 0.9,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.9,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.9,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.9,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d10",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.83,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.83,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.83,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.83,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [
+        "low_slice_count"
+      ],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d11",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.77,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.77,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.77,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.77,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d12",
+      "findings": {
+        "ACL": 0.56,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.9,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.2,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.58,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d13",
+      "findings": {
+        "ACL": 0.9,
+        "MCL": 0.8,
+        "Medial Meniscus": 0.85,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.75,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.7,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.9,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.85,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.75,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.7,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.9,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.85,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.75,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.7,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.9,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.85,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.75,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.7,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d14",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.77,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.8,
+        "Fracture": 0.88
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.77,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.8,
+            "Fracture": 0.88
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.77,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.8,
+            "Fracture": 0.88
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.77,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.8,
+            "Fracture": 0.88
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d16",
+      "findings": {
+        "ACL": 0.89,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.89,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.89,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.89,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d17",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.7,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.7,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.7,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.7,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d18",
+      "findings": {
+        "ACL": 0.85,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.7,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.85,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.7,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.85,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.7,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.85,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.7,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d19",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.8,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d20",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.8,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d21",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.74,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.74,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.74,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.74,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-d22",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.79,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.79,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.79,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.79,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u01",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.87,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.87,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.87,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.87,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u02",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.78,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.78,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.78,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.78,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u03",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.74,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.81,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.74,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.81,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.74,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.81,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.74,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.81,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u04",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.6,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.83,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.6,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.83,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.6,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.83,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.6,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.83,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u05",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.52,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.51,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.52,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.85,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.52,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.15,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.52,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.53,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u06",
+      "findings": {
+        "ACL": 0.88,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.72,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.88,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.72,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.88,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.72,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.88,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.72,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u07",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.8,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.8,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.8,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.8,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u08",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u09",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.7,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.75,
+        "Fracture": 0.9
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.7,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.75,
+            "Fracture": 0.9
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.7,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.75,
+            "Fracture": 0.9
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.7,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.75,
+            "Fracture": 0.9
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u10",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.8,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [
+        "missing_plane:coronal",
+        "missing_plane:axial"
+      ],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u11",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.74,
+        "Fracture": 0.86
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.74,
+            "Fracture": 0.86
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.74,
+            "Fracture": 0.86
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.74,
+            "Fracture": 0.86
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u12",
+      "findings": {
+        "ACL": 0.84,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.84,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.84,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.84,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u13",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.8,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.8,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u14",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.73,
+        "Synovitis": 0.68,
+        "Baker's": 0.7,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.73,
+            "Synovitis": 0.68,
+            "Baker's": 0.7,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.73,
+            "Synovitis": 0.68,
+            "Baker's": 0.7,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.73,
+            "Synovitis": 0.68,
+            "Baker's": 0.7,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u15",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.72,
+        "Medial Meniscus": 0.66,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.72,
+            "Medial Meniscus": 0.66,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.72,
+            "Medial Meniscus": 0.66,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.72,
+            "Medial Meniscus": 0.66,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u16",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.05,
+        "Medial Meniscus": 0.55,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.55,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.55,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.05,
+            "Medial Meniscus": 0.55,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [
+        "low_slice_count"
+      ],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    },
+    {
+      "study_id": "eval-u17",
+      "findings": {
+        "ACL": 0.05,
+        "MCL": 0.79,
+        "Medial Meniscus": 0.05,
+        "Lateral Meniscus": 0.05,
+        "Medial OA": 0.05,
+        "Lateral OA": 0.05,
+        "PF OA": 0.05,
+        "Effusion": 0.05,
+        "Synovitis": 0.05,
+        "Baker's": 0.05,
+        "Contusion": 0.05,
+        "Fracture": 0.05
+      },
+      "per_plane": [
+        {
+          "plane": "sagittal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.79,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "coronal",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.79,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        },
+        {
+          "plane": "axial",
+          "scores": {
+            "ACL": 0.05,
+            "MCL": 0.79,
+            "Medial Meniscus": 0.05,
+            "Lateral Meniscus": 0.05,
+            "Medial OA": 0.05,
+            "Lateral OA": 0.05,
+            "PF OA": 0.05,
+            "Effusion": 0.05,
+            "Synovitis": 0.05,
+            "Baker's": 0.05,
+            "Contusion": 0.05,
+            "Fracture": 0.05
+          }
+        }
+      ],
+      "laterality": "left",
+      "laterality_source": "dicom_tag",
+      "quality_flags": [],
+      "model_version": "eval-fixture-v1",
+      "latency_ms": 0.0
+    }
+  ]
+}
