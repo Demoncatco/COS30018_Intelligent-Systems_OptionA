@@ -70,3 +70,12 @@ def test_build_runners_wires_the_real_recommendation_agent(tmp_path, no_diagnost
     settings = _settings(tmp_path, "auto")
     runners = wiring.build_runners(settings, LLMClient(settings))
     assert runners.recommendation_impl == "agent" and runners.diagnostic_impl == "interim"
+
+def test_the_real_diagnostic_agent_is_picked_up(tmp_path, monkeypatch):
+    # No fakes: agents/diagnostic_agent/agent.py must define DiagnosticAgent (open item in README section 14)
+    from agents.diagnostic_agent.agent import DiagnosticAgent
+
+    monkeypatch.setenv("DIAGNOSTIC_LOCAL_CHECKPOINT", str(tmp_path / "none.pt"))  # Model Service path, no torch
+    settings = _settings(tmp_path, "agent")
+    runner, impl, note = wiring.load_diagnostic(settings, LLMClient(settings))
+    assert impl == "agent" and isinstance(runner, DiagnosticAgent) and note.endswith("DiagnosticAgent")
