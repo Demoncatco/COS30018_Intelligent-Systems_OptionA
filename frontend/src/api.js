@@ -19,6 +19,7 @@ async function request(path, options = {}) {
 export const getHealth = () => request("/health");
 export const getStudies = () => request("/studies");
 export const getSession = (id) => request(`/sessions/${id}`);
+export const getReport = (id) => request(`/sessions/${id}/report`);
 export const getUpload = (id) => request(`/uploads/${id}`);
 export const sliceUrl = (id, plane, index) => `/uploads/${id}/slices/${plane}/${index}.png`;
 

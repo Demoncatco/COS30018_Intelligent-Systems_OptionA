@@ -1,6 +1,6 @@
 // Main screen: scan on the left (upload, viewer, patient details), analysis on the right (live progress, report).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getHealth, getSession, startSession, streamEvents, uploadFiles } from "./api.js";
+import { getHealth, getReport, getSession, startSession, streamEvents, uploadFiles } from "./api.js";
 import Header from "./components/Header.jsx";
 import ScanInput from "./components/ScanInput.jsx";
 import ScanViewer from "./components/ScanViewer.jsx";
@@ -75,8 +75,13 @@ export default function App() {
           }),
         onEnd: async () => {
           try {
-            const detail = await getSession(session.session_id);
-            setRun((r) => ({ ...r, detail, status: detail.status }));
+            // Status, scores and usage from /sessions/{id}; the report itself from /report
+            const [detail, report] = await Promise.all([
+              getSession(session.session_id),
+              getReport(session.session_id).catch(() => null),
+            ]);
+            const final_report = report ?? detail.final_report;
+            setRun((r) => ({ ...r, detail: { ...detail, final_report }, status: detail.status }));
           } catch (e) {
             setRun((r) => ({ ...r, error: e.message }));
           }
