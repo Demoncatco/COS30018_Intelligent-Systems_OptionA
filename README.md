@@ -44,10 +44,10 @@ Open <http://localhost:8000/docs> and try `POST /sessions` with `{"study_id": "t
 
 | Part | State |
 |---|---|
-| Model Service (stub, replay, live) and training code | Working; replay and live need a trained checkpoint (section 9) |
+| Model Service (stub, replay, live) and training code | Working; replay and live need a trained checkpoint (section 9). Weak labels for v1 generated (`weak_labels.csv`) |
 | Coordinator Agent (Qwen) | Working, validated on 20 scenarios |
 | Recommendation Agent (Qwen, local docs + web) | Working |
-| Diagnostic Agent (MedGemma) | Report extractor working (`findings.csv`); the agent itself (`agent.py`) pending. Until then the backend uses the interim Model Service adapter automatically |
+| Diagnostic Agent (MedGemma) | Working: `agent.py` scores with the committed local model (or the Model Service), adds per-plane scores, a MedGemma impression and a report cross-check; `GET /health` shows `"diagnostic": "agent"` |
 | FastAPI backend, baseline, live trace | Working (section 8.3) |
 | Logging, traces, sandboxing, timeouts, CI | Working (sections 11–13) |
 | System evaluation (39 tasks, multi-agent vs baseline) | Harness, test set and metrics ready (`evaluation/README.md`); real results pending a run with Ollama |
@@ -318,11 +318,11 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 ├── agents/
 │   ├── coordinator/             ✅ Coordinator Agent (Ren), see agents/coordinator/README.md
 │   │   └── wiring.py            ✅ picks the real or interim Diagnostic Agent (DIAGNOSTIC_IMPL)
-│   ├── diagnostic_agent/        🟡 Diagnostic Agent (Justin)
+│   ├── diagnostic_agent/        ✅ Diagnostic Agent (Justin)
 │   │   ├── extract_knee_findings.py ✅ radiology report → per-finding labels via LLM
 │   │   ├── findings.csv         ✅ extracted findings (StudyInstanceUID, Abnormality, Severity)
 │   │   ├── findings_errors.csv  studies the extractor could not parse
-│   │   └── agent.py             ⬜ DiagnosticAgent class (contract in agents/coordinator/README.md)
+│   │   └── agent.py             ✅ DiagnosticAgent class (contract in agents/coordinator/README.md)
 │   └── recommendation_agent/    ✅ LangGraph RAG loop + Coordinator adapter (Christina), see agents/recommendation_agent/README.md
 ├── backend/                     ✅ FastAPI backend: sessions, SSE trace, baseline, health (Ren)
 │   ├── main.py                  ✅ endpoints (section 8.3)
@@ -356,6 +356,8 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   │   ├── series_selection.csv ✅
 │   │   ├── dataset.py           ✅ float16 .npz cache + training Dataset
 │   │   ├── labels.py            ✅ gold + weak label merge, weak file validation, template/check CLI
+│   │   ├── weak_labeller.py     ✅ keyword/rule weak labeller over report text (5 languages) + gold agreement
+│   │   ├── weak_labels.csv      ✅ its output for the 250 weak studies (agreed format, passes `labels check`)
 │   │   ├── model.py             ✅ KneeNet (see section 9)
 │   │   ├── train.py             ✅ training loop, split (reusable across runs), checkpoint
 │   │   ├── inference.py         ✅ checkpoint → PredictionResponse (shared by live mode and the exporter)
@@ -665,12 +667,27 @@ Other training options: `--weak-weight`, `--pos-weight-cap`, `--plane-loss-weigh
 Weak label helpers:
 
 ```bash
+# Generate weak labels for the 250 manifest weak studies from their report text (already committed as
+# model_service/knee_model/weak_labels.csv), and score the same rules against the 58 gold reports
+python -m model_service.knee_model.weak_labeller --train-csv <path>/train.csv \
+    --out model_service/knee_model/weak_labels.csv --eval-gold model_service/knee_model/weak_labeller_gold_agreement.csv
+
 # Empty file in the agreed format, one row per weak study in the manifest
 python -m model_service.knee_model.labels template --out weak_labels_template.csv
 
 # Validate a filled-in file and print positives / negatives / unknowns per finding
 python -m model_service.knee_model.labels check --weak weak_labels.csv
 ```
+
+The rules (`weak_labeller.py`) look for each finding's name in English, Spanish, Portuguese, Dutch and German,
+then decide per clause: a negation ("no", "intact", "sin", "geen", "ohne" ...) gives `0`, a hedge ("possible",
+"suspected", "R/O" ...) gives `-1`, an injury word (or, for effusion, synovitis, Baker's, contusion and fracture, the
+term itself) gives `1`; OA needs a compartment word and a cartilage/degeneration word in the same clause. Any
+positive clause wins, then hedged, then negative; never mentioned stays blank. 182 of the 250 weak studies get at
+least one known label (reports in other languages get none). Against the 58 gold reports the rules agree with
+the expert labels on about 80% of the cells they label (`weak_labeller_gold_agreement.csv`: recall is high, precision
+lower, weakest on Contusion, Effusion and Synovitis). The rules were tuned while reading those gold reports, so
+this figure is optimistic; it is a check, not a held-out score. That is why weak labels get weight `0.5`.
 
 Checkpoints are git-ignored. Share them through the agreed team storage and record the version used in
 `MODEL_CHECKPOINT`.
@@ -738,9 +755,10 @@ Tests must not need the Kaggle dataset, a GPU, a running Ollama server or an API
 | Sandboxing (URL allowlist, citation re-check, input limits, no LLM-chosen ids/paths, prompt-injection framing) | `tests/test_sandboxing.py` |
 | Tool timeouts (slow agents, hung Model Service, health check) | `tests/test_timeouts.py`, `shared/tests/test_llm.py` |
 | Logging (JSON lines, rotation, secret redaction, access log, valid trace per session) | `tests/test_logging.py` |
-| Agent wiring (real vs interim Diagnostic Agent) | `agents/coordinator/tests/test_wiring.py` |
+| Agent wiring (real vs interim Diagnostic Agent, the real `DiagnosticAgent` is found) | `agents/coordinator/tests/test_wiring.py` |
+| Per-plane scores from Model Service to the report | `agents/coordinator/tests/test_per_plane.py` |
 | Schema, config, LLM client | `shared/tests/` |
-| Model Service and training code | `model_service/tests/` (some need `torch`) |
+| Model Service, training code and weak labeller | `model_service/tests/` (some need `torch`) |
 
 ---
 
@@ -833,15 +851,19 @@ Known gaps to close; tick them off as PRs merge.
 - [x] Implement `replay` and `live` modes in the Model Service.
 - [x] Align the comment in `model_service/api/main.py` (port 8000) with `MODEL_SERVICE_URL` (port 8001).
 - [x] Define the format of the Kaggle-exported `predictions.json` for replay mode (section 8.1).
-- [ ] Confirm the weak-label CSV format with the weak labeller (`study_id` + the 12 `FINDINGS` columns; 1/0/-1/blank,
-      see section 3.5). `labels.py` now enforces it.
-- [ ] Add per-plane scores to `DiagnosticAgentResponse` so `ReportedFinding.per_plane` can be filled in the
-      multi-agent report (currently empty; the baseline already fills it from the Model Service).
+- [x] Confirm the weak-label CSV format with the weak labeller (`study_id` + the 12 `FINDINGS` columns; 1/0/-1/blank,
+      see section 3.5). `weak_labeller.py` writes exactly this format and checks it with `labels.py` before saving;
+      `weak_labels.csv` (250 weak studies) passes `labels check` (section 9).
+- [x] Add per-plane scores to `DiagnosticAgentResponse` so `ReportedFinding.per_plane` can be filled in the
+      multi-agent report: `DiagnosticAgentResponse.per_plane` (plane -> 12 scores, only planes the model scored),
+      filled by the interim adapter and the real agent, copied into `ReportedFinding.per_plane` by the Coordinator.
 - [x] FastAPI backend, single-call baseline and agent wiring (section 8.3).
-- [ ] Diagnostic Agent: `agents/diagnostic_agent/agent.py` defines `DiagnosticAgent(llm, settings)`, callable as
+- [x] Diagnostic Agent: `agents/diagnostic_agent/agent.py` defines `DiagnosticAgent(llm, settings)`, callable as
       `(DiagnosticAgentRequest, *, session_id) -> DiagnosticAgentResponse`. Picked up automatically; check with
       `GET /health` (`"diagnostic": "agent"`).
-- [ ] React frontend connected to `/sessions`, `/stream` and `/report`.
+- [x] React frontend connected to `/sessions`, `/stream` and `/report` (`frontend/src/api.js`: `startSession`,
+      `streamEvents`, `getReport`; `getSession` adds status, scores and usage).
 - [x] Evaluation runner (`evaluation/run_eval.py`): 39 cases through the same agent wiring as the backend
       (in-process, with fault injection), multi-agent vs baseline. See `evaluation/README.md`.
-- [ ] Run the full evaluation with Ollama, fill in the human review sheet, and report the results.
+- [ ] Run the full evaluation with Ollama, fill in the human review sheet, and report the results. Needs a machine with
+      Ollama and the models pulled; time one task first (`--tasks D01`), see section 8.5.
