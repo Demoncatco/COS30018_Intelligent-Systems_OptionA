@@ -1,0 +1,5 @@
+{"session_id":"bl-D15-r0","seq":0,"timestamp":1793639417.5437632,"agent":"coordinator","kind":"status","message":"Baseline started (medgemma:4b, one call)","data":{"status":"running"},"tokens_in":null,"tokens_out":null,"latency_ms":null}
+{"session_id":"bl-D15-r0","seq":1,"timestamp":1793639417.5443974,"agent":"baseline","kind":"tool_call","message":"Model Service /predict","data":{"study_id":"eval-d15"},"tokens_in":null,"tokens_out":null,"latency_ms":null}
+{"session_id":"bl-D15-r0","seq":2,"timestamp":1793639417.5468283,"agent":"model_service","kind":"error","message":"StudyNotAvailableError: study eval-d15 is not available in the Model Service","data":{},"tokens_in":null,"tokens_out":null,"latency_ms":null}
+{"session_id":"bl-D15-r0","seq":3,"timestamp":1793639417.5473034,"agent":"baseline","kind":"message","message":"Final report assembled","data":{"status":"failed","findings":[]},"tokens_in":null,"tokens_out":null,"latency_ms":null}
+{"session_id":"bl-D15-r0","seq":4,"timestamp":1793639417.5475554,"agent":"coordinator","kind":"status","message":"Session failed","data":{"status":"failed"},"tokens_in":null,"tokens_out":null,"latency_ms":null}
