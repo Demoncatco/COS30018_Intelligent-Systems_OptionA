@@ -98,11 +98,12 @@ is enforced by deterministic guardrails rather than left to the Coordinator's ju
 
 | Member | Owns |
 |---|---|
-| **Ren** | Coordinator Agent, FastAPI backend, frontend, baseline, integration, shared config/logging/secrets, engineering requirements (tests, sandboxing, CI) · detection model architecture and training |
-| **Justin** | Diagnostic Agent (MedGemma), report findings extractor, agent evaluation and data visualisation |
-| **Christina** | Recommendation Agent (Qwen): local document store, web search, synthesis, evaluation test cases |
-| **Harsh** | DICOM and data research, evaluation test cases |
-| **Xavier** | Full Data pipeline (manifest, DICOM Loader, series selection, preprocessing), Recommendation Agent support, report writing |
+| **Ren** | Coordinator Agent, FastAPI backend, frontend, baseline, integration, shared config/logging/secrets, engineering requirements (tests, sandboxing, CI) · detection model architecture and training, report writing (Coordinator Agent, Backend and User Interface
+) |
+| **Justin** | Diagnostic Agent (MedGemma), report findings extractor, agent evaluation and data visualisation, report writing (Agents: Diagnostic agent, Discussion, Data Pipeline and Detection Model: KneeNet and Model Service) |
+| **Christina** | Recommendation Agent (Qwen): local document store, web search, synthesis, evaluation test cases, report writing (Agents: Recommendation Agent, Evaluation, Multi-Agent Coordination) |
+| **Harsh** | DICOM and data research, evaluation test cases, report writing (System Architecture, Conclusion) |
+| **Xavier** | Full Data pipeline (manifest, DICOM Loader, series selection, preprocessing), Recommendation Agent support, report writing ( Introduction, Data Pipeline and Detection Model: Data Subset, Pre-processing) |
 
 
 ---
