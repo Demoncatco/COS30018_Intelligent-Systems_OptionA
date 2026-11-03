@@ -98,13 +98,12 @@ is enforced by deterministic guardrails rather than left to the Coordinator's ju
 
 | Member | Owns |
 |---|---|
-| **Ren** | Coordinator Agent, FastAPI backend, baseline, integration, shared config/logging/secrets, engineering requirements (tests, sandboxing, CI) · detection model architecture and training |
+| **Ren** | Coordinator Agent, FastAPI backend, frontend, baseline, integration, shared config/logging/secrets, engineering requirements (tests, sandboxing, CI) · detection model architecture and training |
 | **Justin** | Diagnostic Agent (MedGemma), report findings extractor, agent evaluation and data visualisation |
-| **Christina** | Recommendation Agent (Qwen): local document store, web search, synthesis |
+| **Christina** | Recommendation Agent (Qwen): local document store, web search, synthesis, evaluation test cases |
 | **Harsh** | DICOM and data research, evaluation test cases |
 | **Xavier** | Full Data pipeline (manifest, DICOM Loader, series selection, preprocessing), Recommendation Agent support, report writing |
 
-> Each member: correct your own row if it is out of date.
 
 ---
 
