@@ -39,8 +39,7 @@ python -m venv .venv && source .venv/bin/activate       # Windows: python -m ven
 pip install -r requirements.txt
 cp .env.example .env                                     # Windows: Copy-Item .env.example .env; then set TOOL_TIMEOUT_S=300
 ollama pull qwen3:8b && ollama pull medgemma:4b
-python -m agents.recommendation_agent.rag.fetch_documents
-python -m agents.recommendation_agent.rag.build_index
+# add your Tavily key to .env (TAVILY_API_KEY=tvly-...), see section 7.5
 python -m shared.llm                                     # checks the models
 cd frontend && npm install && npm run build && cd ..     # Windows: run the four parts on separate lines
 uvicorn backend.main:app --port 8000                     # open http://localhost:8000 and upload a scan
@@ -54,7 +53,7 @@ No Ollama yet? `pytest` runs every automated test without Ollama, a GPU, the dat
 |---|---|
 | Model Service (stub, replay, live) and training code | Working; replay and live need a trained checkpoint (section 9). Weak labels for v1 generated (`weak_labels.csv`) |
 | Coordinator Agent (Qwen) | Working, validated on 20 scenarios |
-| Recommendation Agent (Qwen, local docs + web) | Working; document index committed (section 7.5) |
+| Recommendation Agent (Qwen, local docs + web) | Working; document index committed (section 7.6) |
 | Diagnostic Agent (MedGemma) | Working: `agent.py` scores with the committed local model (or the Model Service), adds per-plane scores, a MedGemma impression and a report cross-check; `GET /health` shows `"diagnostic": "agent"` |
 | FastAPI backend, baseline, live trace | Working (section 8.4) |
 | Logging, traces, sandboxing, timeouts, CI | Working (sections 11–13) |
@@ -104,6 +103,8 @@ is enforced by deterministic guardrails rather than left to the Coordinator's ju
 | **Christina** | Recommendation Agent (Qwen): local document store, web search, synthesis |
 | **Harsh** | DICOM and data research, evaluation test cases |
 | **Xavier** | Full Data pipeline (manifest, DICOM Loader, series selection, preprocessing), Recommendation Agent support, report writing |
+
+> Each member: correct your own row if it is out of date.
 
 ---
 
@@ -367,7 +368,7 @@ Status key: ✅ working · 🟡 stub or partial · ⬜ planned
 │   │   ├── train.py             ✅ training loop, split (reusable across runs), checkpoint
 │   │   ├── inference.py         ✅ checkpoint → PredictionResponse (shared by live mode and the exporter)
 │   │   ├── export_predictions.py ✅ Kaggle: writes predictions.json for replay mode
-│   │   ├── upload.py            ✅ uploaded DICOMs/.zip → plane + series from headers → model input
+│   │   └── upload.py            ✅ uploaded DICOMs/.zip → plane + series from headers → model input
 │   ├── checkpoints/             (git-ignored *.pt; predictions.json goes here for replay mode)
 │   ├── notebooks/               Kaggle notebooks
 │   └── tests/                   ✅ model-service tests
@@ -409,6 +410,7 @@ After that the system runs offline, except optional web search.
 bash:
 
 ```bash
+git clone <repo-url>
 cd COS30018_Intelligent-Systems_OptionA
 python -m venv .venv
 source .venv/bin/activate
@@ -419,6 +421,7 @@ cp .env.example .env
 PowerShell:
 
 ```powershell
+git clone <repo-url>
 cd COS30018_Intelligent-Systems_OptionA
 python -m venv .venv
 .venv\Scripts\Activate.ps1      # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned, then retry
@@ -436,7 +439,7 @@ The defaults work, with one change for laptops without a GPU:
 |---|---|---|
 | `TOOL_TIMEOUT_S` | `300` | The default 60 s is too short for Qwen on CPU; the Recommendation Agent would be cut off |
 | `DIAGNOSTIC_LOCAL_CHECKPOINT` | empty | The Diagnostic Agent then uses the committed trained model `agents/diagnostic_agent/weights/best_model.pt` |
-| `TAVILY_API_KEY` | your key (optional) | Lets the Recommendation Agent search the web when the local documents have nothing. Free key at tavily.com. Without it the agent uses the local documents only |
+| `TAVILY_API_KEY` | your key (recommended) | Web search for the Recommendation Agent when the local documents do not cover a finding. Without it those runs show "TAVILY_API_KEY is not set" under problems and can end `partial`. See section 7.5 |
 
 Every setting is listed in section 10. Never commit `.env`.
 
@@ -452,12 +455,35 @@ The tags must match `DIAGNOSTIC_MODEL`, `COORDINATOR_MODEL`, `RECOMMENDATION_MOD
 including the tag (`qwen3:8b`, not `qwen3`). `python -m shared.llm` prints each model's digest, the load time, one Qwen
 tool call and one MedGemma answer, and exits non-zero with the reason if anything is missing.
 
-### 7.5 The Recommendation Agent's document index
+### 7.5 Tavily API key (web search)
+
+1. Create a free account at <https://tavily.com> and copy your API key from the dashboard (it starts with `tvly-`).
+2. In `.env`, replace the placeholder on the `TAVILY_API_KEY` line, with no quotes or spaces:
+
+   ```
+   TAVILY_API_KEY=tvly-your-key-here
+   ```
+
+3. Check it is picked up:
+
+   ```bash
+   python -c "from shared.config import get_settings; print(get_settings().has_tavily_key)"
+   ```
+
+   `True` means the key is set. `False` means the line still has the placeholder `your-tavily-api-key-here`, is
+   empty, or `.env` is not in the repo root.
+
+4. Restart the backend after changing `.env`.
+
+Searches are limited to the trusted medical sites in `TRUSTED_DOMAINS`, and every result is checked against that list
+again before use. The key is never written to logs or traces. Never commit `.env`. For a fully repeatable evaluation
+run, web search can be turned off with `--no-web` (section 11.3).
+
+### 7.6 The Recommendation Agent's document index
 
 The agent searches a local index of the trusted sources listed in `agents/recommendation_agent/rag/manifest.json`.
-Required before the first run (needs internet, a few minutes). Without it every agent-team run ends partial with no recommendation.
-
-To build it from the sources (needs internet, a few minutes):
+The built index is committed in `agents/recommendation_agent/rag/data/index/` (`embeddings.npy`, `metadata.json`), so
+there is nothing to do. To rebuild it from the sources (needs internet, a few minutes):
 
 ```bash
 python -m agents.recommendation_agent.rag.fetch_documents   # downloads the pages to rag/data/raw/
@@ -467,7 +493,7 @@ python -m agents.recommendation_agent.rag.build_index       # embeds them into r
 Pages that cannot be downloaded automatically are listed in `rag/data/manual_fetch_needed.txt`. A rebuild can differ
 from the committed index if a source page has changed, so the evaluation results refer to the committed one.
 
-### 7.6 Build the frontend
+### 7.7 Build the frontend
 
 bash:
 
@@ -887,12 +913,13 @@ recovery rates for both systems.
 | "Ollama is not reachable" | Ollama not running | Start it, rerun `python -m shared.llm` |
 | Model not found | Tag not pulled or different | `ollama list`; tags in `.env` must match exactly |
 | Recommendation times out, run `partial` | Qwen slow on CPU | `TOOL_TIMEOUT_S=300` (or more) in `.env`, restart the backend |
-| "No index found ... run build_index.py first" | Document index missing | Section 7.5 |
+| "No index found ... run build_index.py first" | Document index missing | Section 7.6 |
+| "TAVILY_API_KEY is not set" under problems, run `partial` | No Tavily key in `.env` | Section 7.5, then restart the backend |
 | "dataset study ids need the Kaggle data" | Study id typed without the dataset | Upload a scan instead, or section 8.2 *Dataset study IDs* |
 | `/health` shows the interim Diagnostic adapter | Real agent failed to import | Error is in the backend log; `DIAGNOSTIC_IMPL=agent` makes it fail loudly |
 | Impression written by `rules` | MedGemma failed or broke a wording rule | Warning in `logs/app.jsonl`; the fallback is intended |
 | Upload refused | JPG/PNG or no DICOM files | Upload the DICOM series (`.dcm` or `.zip`) |
-| UI not found at <http://localhost:8000> | Frontend not built | Section 7.6 |
+| UI not found at <http://localhost:8000> | Frontend not built | Section 7.7 |
 | `.venv\Scripts\Activate.ps1` blocked | PowerShell execution policy | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
 
 ---
