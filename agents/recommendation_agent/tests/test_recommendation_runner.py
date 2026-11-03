@@ -178,6 +178,60 @@ def test_graph_searches_before_writing_a_no_sources_answer(tmp_path):
     assert searched and response.evidence_status == EvidenceStatus.GROUNDED_WEB
 
 
+# --- The evidence rule: three local chunks, otherwise web search ---
+
+def three_chunks(query, k=3, finding=None):
+    """Return a full local result: three chunks from three different sources"""
+    name = finding or "general"
+    return [{"source_title": f"{name} doc {i}", "source_url": f"https://www.nhs.uk/{i}",
+             "findings": [name], "text": f"{name} advice {i}.", "score": 0.8} for i in range(3)]
+
+
+def always(action):
+    """A model that always asks for the same action, to check that code enforces the rule"""
+    def llm(prompt, system=None):
+        return f'{{"action": "{action}"}}' if system and "decision step" in system else SYNTHESIS
+    return llm
+
+
+def recording_search(searched):
+    """Record each web search query and return one trusted result"""
+    def search(query, max_results):
+        searched.append(query)
+        return fake_search(query, max_results)
+    return search
+
+
+def test_three_local_chunks_skip_web_search_even_if_the_model_asks(tmp_path):
+    searched = []
+    response = agent(tmp_path, retrieve=three_chunks, search=recording_search(searched),
+                     llm=always("web_search"))(request({"ACL": 0.9}), session_id="s1")
+    assert searched == [] and response.evidence_status == EvidenceStatus.GROUNDED_LOCAL
+    assert any("web search is not needed" in line for line in response.trace)
+
+
+def test_fewer_than_three_local_chunks_force_web_search(tmp_path):
+    # fake_retrieve returns one chunk; the model tries to synthesize straight away
+    searched = []
+    response = agent(tmp_path, retrieve=fake_retrieve, search=recording_search(searched),
+                     llm=always("synthesize"))(request({"ACL": 0.9}), session_id="s1")
+    assert len(searched) == 1 and response.evidence_status == EvidenceStatus.GROUNDED_WEB
+    assert any("only 1 of 3 required doc-store chunks" in line for line in response.trace)
+
+
+def test_local_store_is_searched_before_the_web(tmp_path):
+    order = []
+    def retrieve(query, k=3, finding=None):
+        order.append("local")
+        return three_chunks(query, k, finding)
+    def search(query, max_results):
+        order.append("web")
+        return []
+    agent(tmp_path, retrieve=retrieve, search=search, llm=always("web_search"))(
+        request({"ACL": 0.9}), session_id="s1")
+    assert order == ["local"]
+
+
 def test_model_failure_propagates_so_the_coordinator_can_retry(tmp_path):
     def down(prompt, system=None):
         raise RuntimeError("Ollama is down")

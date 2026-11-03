@@ -1,5 +1,5 @@
 # Choose the next graph action using Qwen, then enforce workflow rules in code
-# Parsing retries handle invalid replies; guards prevent repeated tools and premature completion
+# Parsing retries handle invalid replies; guards enforce the evidence rule, prevent repeated tools and premature completion
 
 import json
 import re
@@ -7,12 +7,15 @@ from typing import Callable
 
 from ..llm_client import call_qwen
 from ..state import RecommendationState
+from .query_doc_store import DEFAULT_K
 
 VALID_ACTIONS = {"query_doc_store", "web_search", "synthesize", "stop"}
 TOOL_ACTIONS = ("query_doc_store", "web_search")
-DEFAULT_ACTION = "query_doc_store"  # Check local sources first
 DEFAULT_MAX_STEPS = 6  # Force synthesis after this many decisions
 MAX_ATTEMPTS = 2  # Initial prompt and one stricter retry
+# Local chunks needed before synthesis; with fewer, web search must be tried first.
+# Equal to the number of chunks query_doc_store returns, so a full local result never triggers web search
+MIN_LOCAL_CHUNKS = DEFAULT_K
 
 JSON_BLOCK_PATTERN = re.compile(r"\{.*\}", re.DOTALL)
 
@@ -38,9 +41,9 @@ def _build_prompt(state: RecommendationState, strict: bool) -> str:
     )
     guidance = (
         "Rules: if no doc-store chunks have been retrieved yet, choose "
-        "query_doc_store. If you have fewer than 2 chunks and haven't tried "
-        "web_search yet, choose web_search. Once you have enough chunks and "
-        "no recommendation is written, choose synthesize. Once a "
+        f"query_doc_store. If you have fewer than {MIN_LOCAL_CHUNKS} doc-store "
+        "chunks and haven't tried web_search yet, choose web_search. Otherwise, "
+        "if no recommendation is written, choose synthesize. Once a "
         "recommendation is written, choose stop."
     )
     if strict:
@@ -67,39 +70,51 @@ def _extract_action(raw_response: str) -> str | None:
     return action
 
 
-def _total_chunks(state: RecommendationState) -> int:
-    """Count local and web chunks together when checking whether evidence is available"""
-    return len(state.get("retrieved_chunks") or []) + len(state.get("web_results") or [])
+def _required_tool(state: RecommendationState) -> str | None:
+    """Return the tool the evidence rule requires next, or None once synthesis may go ahead
+    The local store always runs first; web search runs only when it returned fewer than
+    MIN_LOCAL_CHUNKS chunks. A tool that has already run (even if it failed) is not required again
+    """
+    taken = state.get("actions_taken", [])
+    if "query_doc_store" not in taken:
+        return "query_doc_store"
+    local = len(state.get("retrieved_chunks") or [])
+    if local < MIN_LOCAL_CHUNKS and "web_search" not in taken:
+        return "web_search"
+    return None
 
 
 def _fallback_action(state: RecommendationState) -> str:
-    """Use the available sources, or request a local lookup if no sources were retrieved"""
-    return "synthesize" if _total_chunks(state) else DEFAULT_ACTION
+    """Follow the evidence rule when the model reply cannot be parsed"""
+    return _required_tool(state) or "synthesize"
 
 
 def _apply_guards(action: str, state: RecommendationState) -> tuple[str, str | None]:
-    """Redirect premature stops, empty-evidence synthesis and repeated tools
+    """Enforce the evidence rule on the model's choice and redirect premature stops and repeated tools
     Return a note whenever code overrides the model so the trace explains the decision
     """
-    taken = state.get("actions_taken", [])
+    required = _required_tool(state)
+    local = len(state.get("retrieved_chunks") or [])
 
-    # Gather sources or write a recommendation before stopping
+    # Gather the required evidence or write a recommendation before stopping
     if action == "stop":
-        if _total_chunks(state) == 0 and "query_doc_store" not in taken:
-            return "query_doc_store", "model chose stop with nothing retrieved; checking the doc store first"
+        if required:
+            return required, f"model chose stop before the evidence rule was met; running {required}"
         return "synthesize", "model chose stop before a recommendation existed"
 
-    # Never write a "no sources" answer while a lookup is still untried: local store first, then the web
-    if action == "synthesize" and _total_chunks(state) == 0:
-        untried = [tool for tool in TOOL_ACTIONS if tool not in taken]
-        if untried:
-            return untried[0], f"model chose synthesize with nothing retrieved; trying {untried[0]} first"
+    # The evidence rule: local store first, then web search only if it returned too few chunks
+    if required and action != required:
+        if required == "query_doc_store":
+            reason = "the doc store has not been searched yet"
+        else:
+            reason = f"only {local} of {MIN_LOCAL_CHUNKS} required doc-store chunks were found"
+        return required, f"model chose {action}, but {reason}; running {required}"
 
-    # Repeating a tool that already ran returns the same results again
-    if action in TOOL_ACTIONS and action in taken:
-        other = "web_search" if action == "query_doc_store" else "query_doc_store"
-        if _total_chunks(state) == 0 and other not in taken:
-            return other, f"{action} already ran; trying {other} instead"
+    # Once the rule is met, another search is not needed: either the local store found enough
+    # chunks or both tools have already run
+    if not required and action in TOOL_ACTIONS:
+        if action == "web_search" and local >= MIN_LOCAL_CHUNKS:
+            return "synthesize", f"{local} doc-store chunks found, so web search is not needed; moving on to synthesize"
         return "synthesize", f"{action} already ran; moving on to synthesize"
 
     return action, None

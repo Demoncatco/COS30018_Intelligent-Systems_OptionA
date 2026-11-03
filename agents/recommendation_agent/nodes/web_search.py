@@ -27,6 +27,7 @@ def _tavily_search(query: str, max_results: int) -> list[dict]:
     settings = get_settings()
     if not settings.has_tavily_key:
         raise RuntimeError("TAVILY_API_KEY is not set in .env, so web search is unavailable")
+    assert settings.tavily_api_key is not None
     client = TavilyClient(api_key=settings.tavily_api_key.get_secret_value())
     # Limit the search to trusted sites, then check each result below
     kwargs = {"query": query, "max_results": max_results, "include_domains": sorted(TRUSTED_DOMAINS)}
